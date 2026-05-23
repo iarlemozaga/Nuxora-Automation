@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <title>Nuxora sistema de gerenciamento</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            body {
+                margin: 0;
+                font-family: Arial, sans-serif;
+                background: #080808;
+                color: #f5f5f5;
+            }
+            header {
+                padding: 20px;
+                background: #111;
+                border-bottom: 1px solid #222;
+                display: flex;
+                justify-content: space-between;
+            }
+            main {
+                padding: 20px;
+                max-width: 1400px;
+                margin: auto;
+            }
+            .card {
+                background: #111;
+                border: 1px solid #222;
+                border-radius: 14px;
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+            input,
+            textarea,
+            button,
+            select {
+                width: 100%;
+                padding: 11px;
+                border-radius: 9px;
+                border: 1px solid #333;
+                background: #080808;
+                color: #fff;
+                margin: 5px 0;
+            }
+            button {
+                background: #8b0000;
+                border: 0;
+                font-weight: bold;
+                cursor: pointer;
+            }
+            button.green {
+                background: #087a35;
+            }
+            button.blue {
+                background: #2e4bd1;
+            }
+            button.secondary {
+                background: #222;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 10px;
+            }
+            .stat {
+                background: #181818;
+                border: 1px solid #252525;
+                border-radius: 12px;
+                padding: 14px;
+            }
+            .stat b {
+                font-size: 24px;
+                display: block;
+            }
+            .tabs,
+            .filters {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-bottom: 12px;
+            }
+            .tabs button,
+            .filters button {
+                width: auto;
+                padding: 10px 13px;
+                background: #1b1b1b;
+            }
+            .filters button.active {
+                background: #8b0000;
+            }
+            .hidden {
+                display: none;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            td,
+            th {
+                border-bottom: 1px solid #222;
+                padding: 9px;
+                text-align: left;
+                vertical-align: top;
+            }
+            small {
+                color: #aaa;
+            }
+            .ticket-type {
+                border: 1px solid #333;
+                border-radius: 12px;
+                padding: 12px;
+                margin: 8px 0;
+                background: #0b0b0b;
+            }
+            @media (max-width: 900px) {
+                .grid {
+                    grid-template-columns: 1fr 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Nuxora sistema de gerenciamento</h1>
+            <span id="status">offline</span>
+        </header>
+        <main>
+            <section id="login" class="card">
+                <h2>Login</h2>
+                <input id="username" value="admin" placeholder="Usuário" />
+                <input
+                    id="password"
+                    value="admin123"
+                    type="password"
+                    placeholder="Senha"
+                />
+                <button onclick="login()">Entrar</button>
+            </section>
+
+            <section id="app" class="hidden">
+                <div class="tabs">
+                    <button onclick="showTab('dashboard')">Dashboard</button>
+                    <button onclick="showTab('applications')">Allowlist</button>
+                    <button onclick="showTab('suggestions')">Sugestões</button>
+                    <button onclick="showTab('tickets')">Tickets</button>
+                    <button onclick="showTab('settings')">Configurações</button>
+                </div>
+
+                <section id="tab-dashboard" class="card">
+                    <h2>Resumo</h2>
+                    <div class="grid">
+                        <div class="stat">Total <b id="stat-apps">0</b></div>
+                        <div class="stat">
+                            Pendentes <b id="stat-pending">0</b>
+                        </div>
+                        <div class="stat">
+                            Aprovadas <b id="stat-approved">0</b>
+                        </div>
+                        <div class="stat">
+                            Rejeitadas <b id="stat-rejected">0</b>
+                        </div>
+                        <div class="stat">
+                            Entrevista <b id="stat-interview">0</b>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tab-applications" class="card hidden">
+                    <h2>Allowlists</h2>
+                    <div class="filters">
+                        <button
+                            id="filter-all"
+                            onclick="setApplicationFilter('all')"
+                        >
+                            Todas
+                        </button>
+                        <button
+                            id="filter-pending"
+                            onclick="setApplicationFilter('pending')"
+                        >
+                            Pendentes
+                        </button>
+                        <button
+                            id="filter-approved"
+                            onclick="setApplicationFilter('approved')"
+                        >
+                            Aprovadas
+                        </button>
+                        <button
+                            id="filter-rejected"
+                            onclick="setApplicationFilter('rejected')"
+                        >
+                            Rejeitadas
+                        </button>
+                        <button
+                            id="filter-interview"
+                            onclick="setApplicationFilter('interview')"
+                        >
+                            Entrevista
+                        </button>
+                    </div>
+                    <div id="applications-table"></div>
+                </section>
+
+                <section id="tab-suggestions" class="card hidden">
+                    <h2>Sugestões</h2>
+                    <div id="suggestions-table"></div>
+                </section>
+
+                <section id="tab-tickets" class="card hidden">
+                    <h2>Configuração dos Tickets</h2>
+
+                    <label>Título do painel de tickets</label>
+                    <input id="ticket_panel_title" />
+
+                    <label>Descrição personalizada do painel de tickets</label>
+                    <textarea id="ticket_panel_description"></textarea>
+
+                    <label>Rodapé do painel</label>
+                    <input id="ticket_panel_footer" />
+
+                    <label>Imagem/banner URL</label>
+                    <input id="ticket_panel_image_url" />
+
+                    <label>Thumbnail/logo URL</label>
+                    <input id="ticket_panel_thumbnail_url" />
+
+                    <label>Cor HEX</label>
+                    <input id="ticket_panel_color" />
+
+                    <label>Categoria padrão dos tickets ID</label>
+                    <input id="ticket_category_id" />
+
+                    <label>Cargo padrão da staff dos tickets ID</label>
+                    <input id="ticket_staff_role_id" />
+
+                    <label>Canal de logs ID</label>
+                    <input id="logs_channel_id" />
+
+                    <h3>Tipos de Ticket</h3>
+                    <p>
+                        <small
+                            >Em cada tipo, você pode deixar categoria/cargos
+                            vazios para usar o padrão acima.</small
+                        >
+                    </p>
+                    <div id="ticket-types"></div>
+
+                    <button class="secondary" onclick="addTicketType()">
+                        Adicionar tipo de ticket
+                    </button>
+                    <button onclick="saveSettings()">Salvar tickets</button>
+                </section>
+
+                <section id="tab-settings" class="card hidden">
+                    <h2>Configurações da Allowlist</h2>
+                    <label>Título da allowlist</label
+                    ><input id="allowlist_title" />
+                    <label>Descrição do painel</label
+                    ><textarea id="allowlist_description"></textarea>
+                    <label>Rodapé</label><input id="allowlist_footer" />
+                    <label>Imagem/banner URL</label
+                    ><input id="allowlist_image_url" />
+                    <label>Thumbnail/logo URL</label
+                    ><input id="allowlist_thumbnail_url" />
+                    <label>Categoria dos canais de Allowlist ID</label
+                    ><input id="allowlist_category_id" />
+                    <label>Perguntas, uma por linha</label
+                    ><textarea id="allowlist_questions" rows="10"></textarea>
+                    <label>Canal Staff ID</label><input id="staff_channel_id" />
+                    <label>Canal Sugestões ID</label
+                    ><input id="suggestion_channel_id" />
+                    <label>Cargo Aprovado ID</label
+                    ><input id="approved_role_id" />
+
+                    <label>Cargo para remover quando aprovar ID</label
+                    ><input id="remove_role_on_approved_id" />
+
+                    <label>Cargo Entrevista ID</label
+                    ><input id="interview_role_id" />
+
+                    <label>Canal de Aprovados ID</label
+                    ><input id="approved_channel_id" />
+
+                    <label>Canal de Reprovados ID</label
+                    ><input id="rejected_channel_id" />
+
+                    <label>Autorole ID ao entrar no servidor</label
+                    ><input id="autorole_role_id" />
+
+                    <label>Cor HEX</label><input id="bot_color" />
+
+                    <hr />
+
+                    <h2>Embed de Entrada e Saída</h2>
+                    <p>
+                        <small>
+                            Configure aqui as mensagens enviadas quando alguém
+                            entra ou sai do servidor.
+                        </small>
+                    </p>
+
+                    <h3>Entrada de membros</h3>
+
+                    <label>Canal de entrada ID</label>
+                    <input id="member_join_channel_id" />
+
+                    <label>Título da embed de entrada</label>
+                    <input id="member_join_title" />
+
+                    <label>Descrição da embed de entrada</label>
+                    <textarea id="member_join_description" rows="8"></textarea>
+
+                    <label>Footer da entrada</label>
+                    <input id="member_join_footer" />
+
+                    <label>Cor HEX da entrada</label>
+                    <input id="member_join_color" />
+
+                    <label>Imagem/banner da entrada URL</label>
+                    <input id="member_join_image_url" />
+
+                    <hr />
+
+                    <h3>Saída de membros</h3>
+
+                    <label>Canal de saída ID</label>
+                    <input id="member_leave_channel_id" />
+
+                    <label>Título da embed de saída</label>
+                    <input id="member_leave_title" />
+
+                    <label>Descrição da embed de saída</label>
+                    <textarea id="member_leave_description" rows="8"></textarea>
+
+                    <label>Footer da saída</label>
+                    <input id="member_leave_footer" />
+
+                    <label>Cor HEX da saída</label>
+                    <input id="member_leave_color" />
+
+                    <label>Imagem/banner da saída URL</label>
+                    <input id="member_leave_image_url" />
+
+                    <p>
+                        <small>
+                            Variáveis disponíveis: {user}, {username},
+                            {display_name}, {id}, {server}, {member_count}
+                        </small>
+                    </p>
+
+                    <button onclick="saveSettings()">
+                        Salvar e sincronizar com Discord
+                    </button>
+                </section>
+            </section>
+        </main>
+
+        <script>
+            const API = "/api";
+            let token = localStorage.getItem("nf_token");
+            let allApplications = [];
+            let currentApplicationFilter = "pending";
+
+            function authHeaders() {
+                return {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                };
+            }
+            function showApp() {
+                loginSection().classList.add("hidden");
+                app.classList.remove("hidden");
+                status.innerText = "online";
+            }
+            function showLogin() {
+                loginSection().classList.remove("hidden");
+                app.classList.add("hidden");
+                status.innerText = "offline";
+            }
+            function loginSection() {
+                return document.getElementById("login");
+            }
+
+            async function login() {
+                const res = await fetch(API + "/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: username.value,
+                        password: password.value,
+                    }),
+                });
+                if (!res.ok) {
+                    alert("Login inválido");
+                    return;
+                }
+                const data = await res.json();
+                token = data.token;
+                localStorage.setItem("nf_token", token);
+                showApp();
+                await loadDashboard();
+            }
+
+            function showTab(name) {
+                [
+                    "dashboard",
+                    "applications",
+                    "suggestions",
+                    "tickets",
+                    "settings",
+                ].forEach((t) =>
+                    document
+                        .getElementById("tab-" + t)
+                        .classList.toggle("hidden", t !== name),
+                );
+            }
+
+            async function loadDashboard() {
+                const res = await fetch(API + "/dashboard", {
+                    headers: authHeaders(),
+                });
+                if (!res.ok) {
+                    showLogin();
+                    return;
+                }
+                const data = await res.json();
+                showApp();
+                const s = data.stats || {};
+                document.getElementById("stat-apps").innerText =
+                    s.applications || 0;
+                document.getElementById("stat-pending").innerText =
+                    s.pending || 0;
+                document.getElementById("stat-approved").innerText =
+                    s.approved || 0;
+                document.getElementById("stat-rejected").innerText =
+                    s.rejected || 0;
+                document.getElementById("stat-interview").innerText =
+                    s.interview || 0;
+                allApplications = data.applications || [];
+                renderApplications();
+                renderSuggestions(data.suggestions || []);
+                fillSettings(data.settings || {});
+            }
+
+            function setApplicationFilter(status) {
+                currentApplicationFilter = status;
+                ["all", "pending", "approved", "rejected", "interview"].forEach(
+                    (s) => {
+                        const b = document.getElementById("filter-" + s);
+                        if (b) b.classList.toggle("active", s === status);
+                    },
+                );
+                renderApplications();
+            }
+
+            function renderApplications() {
+                let items =
+                    currentApplicationFilter === "all"
+                        ? allApplications
+                        : allApplications.filter(
+                              (a) => a.status === currentApplicationFilter,
+                          );
+                let html =
+                    "<table><tr><th>ID</th><th>Usuário</th><th>Status</th><th>Respostas</th><th>Ações</th></tr>";
+                for (const a of items) {
+                    let answers = "";
+                    try {
+                        answers = JSON.parse(a.answers || "[]")
+                            .map(
+                                (x) =>
+                                    `<b>${esc(x.question)}</b><br>${esc(x.answer)}`,
+                            )
+                            .join("<hr>");
+                    } catch (e) {
+                        answers = esc(a.answers || "");
+                    }
+                    html += `<tr><td>${a.id}</td><td>${esc(a.discord_name)}<br><small>${a.discord_id}</small></td><td><b>${a.status}</b></td><td>${answers}</td><td><button class="green" onclick="setAppStatus(${a.id},'approved')">Aprovar</button><button class="blue" onclick="setAppStatus(${a.id},'interview')">Entrevista</button><button onclick="setAppStatus(${a.id},'rejected')">Reprovar</button></td></tr>`;
+                }
+                html += "</table>";
+                document.getElementById("applications-table").innerHTML = html;
+            }
+
+            function renderSuggestions(items) {
+                let html =
+                    "<table><tr><th>ID</th><th>Usuário</th><th>Status</th><th>Conteúdo</th><th>Ações</th></tr>";
+                for (const s of items) {
+                    html += `<tr><td>${s.id}</td><td>${esc(s.discord_name)}</td><td>${esc(s.status)}</td><td>${esc(s.content)}</td><td><button class="green" onclick="setSuggestionStatus(${s.id},'accepted')">Aceita</button><button class="blue" onclick="setSuggestionStatus(${s.id},'implemented')">Implementada</button><button onclick="setSuggestionStatus(${s.id},'rejected')">Negada</button></td></tr>`;
+                }
+                html += "</table>";
+                document.getElementById("suggestions-table").innerHTML = html;
+            }
+
+            function fillSettings(s) {
+                setValue("allowlist_title", s.allowlist_title || "");
+                setValue(
+                    "allowlist_description",
+                    s.allowlist_description || "",
+                );
+                setValue("allowlist_footer", s.allowlist_footer || "");
+                setValue("allowlist_image_url", s.allowlist_image_url || "");
+                setValue(
+                    "allowlist_thumbnail_url",
+                    s.allowlist_thumbnail_url || "",
+                );
+                setValue(
+                    "allowlist_category_id",
+                    s.allowlist_category_id || "",
+                );
+                setValue("staff_channel_id", s.staff_channel_id || "");
+                setValue(
+                    "suggestion_channel_id",
+                    s.suggestion_channel_id || "",
+                );
+                setValue("approved_role_id", s.approved_role_id || "");
+                setValue(
+                    "remove_role_on_approved_id",
+                    s.remove_role_on_approved_id || "",
+                );
+                setValue("interview_role_id", s.interview_role_id || "");
+                setValue("approved_channel_id", s.approved_channel_id || "");
+                setValue("rejected_channel_id", s.rejected_channel_id || "");
+                setValue("autorole_role_id", s.autorole_role_id || "");
+                setValue("bot_color", s.bot_color || "#8B0000");
+
+                try {
+                    setValue(
+                        "allowlist_questions",
+                        JSON.parse(s.allowlist_questions || "[]").join("\n"),
+                    );
+                } catch (e) {
+                    setValue("allowlist_questions", "");
+                }
+
+                setValue(
+                    "ticket_panel_title",
+                    s.ticket_panel_title || "🎫 Central de Atendimento",
+                );
+                setValue(
+                    "ticket_panel_description",
+                    s.ticket_panel_description ||
+                        "Selecione abaixo o tipo de atendimento que você precisa.",
+                );
+                setValue("ticket_panel_footer", s.ticket_panel_footer || "");
+                setValue(
+                    "ticket_panel_image_url",
+                    s.ticket_panel_image_url || "",
+                );
+                setValue(
+                    "ticket_panel_thumbnail_url",
+                    s.ticket_panel_thumbnail_url || "",
+                );
+                setValue(
+                    "ticket_panel_color",
+                    s.ticket_panel_color || "#8B0000",
+                );
+                setValue("ticket_category_id", s.ticket_category_id || "");
+                setValue("ticket_staff_role_id", s.ticket_staff_role_id || "");
+                setValue("logs_channel_id", s.logs_channel_id || "");
+                setValue(
+                    "member_join_channel_id",
+                    s.member_join_channel_id || "",
+                );
+                setValue(
+                    "member_join_title",
+                    s.member_join_title || "👋 Bem-vindo(a) ao NightFall",
+                );
+                setValue(
+                    "member_join_description",
+                    s.member_join_description ||
+                        "As sombras observam sua chegada.\n\n{user}, acaba de atravessar os portões de {server} e agora faz parte de um mundo marcado por sangue, guerra e segredos antigos.\n\nQue sua história seja lembrada... ou enterrada nas trevas do Eclipse Eterno.",
+                );
+                setValue(
+                    "member_join_footer",
+                    s.member_join_footer || "NightFall • Boas-vindas",
+                );
+                setValue("member_join_color", s.member_join_color || "#8B0000");
+                setValue(
+                    "member_join_image_url",
+                    s.member_join_image_url || "",
+                );
+
+                setValue(
+                    "member_leave_channel_id",
+                    s.member_leave_channel_id || "",
+                );
+                setValue(
+                    "member_leave_title",
+                    s.member_leave_title || "📤 Membro saiu",
+                );
+                setValue(
+                    "member_leave_description",
+                    s.member_leave_description ||
+                        "**{username}** deixou {server}.\n\nAs sombras registram sua partida.",
+                );
+                setValue(
+                    "member_leave_footer",
+                    s.member_leave_footer || "NightFall • Saídas",
+                );
+                setValue(
+                    "member_leave_color",
+                    s.member_leave_color || "#8B0000",
+                );
+                setValue(
+                    "member_leave_image_url",
+                    s.member_leave_image_url || "",
+                );
+
+                let types = [];
+                try {
+                    types = JSON.parse(s.ticket_types || "[]");
+                } catch (e) {
+                    types = [];
+                }
+                if (types.length === 0) {
+                    types = [
+                        {
+                            id: "suporte",
+                            label: "Suporte",
+                            emoji: "🛠️",
+                            description: "Abra um ticket para suporte geral.",
+                            style: "gray",
+                            category_id: "",
+                            allowed_role_ids: [],
+                        },
+                        {
+                            id: "denuncia",
+                            label: "Denúncia",
+                            emoji: "🚨",
+                            description: "Abra um ticket para denúncias.",
+                            style: "red",
+                            category_id: "",
+                            allowed_role_ids: [],
+                        },
+                        {
+                            id: "bug",
+                            label: "Bug",
+                            emoji: "🐞",
+                            description: "Reporte bugs ou problemas técnicos.",
+                            style: "blurple",
+                            category_id: "",
+                            allowed_role_ids: [],
+                        },
+                    ];
+                }
+                renderTicketTypes(types);
+            }
+
+            function renderTicketTypes(types) {
+                const box = document.getElementById("ticket-types");
+                box.innerHTML = "";
+                types.forEach((t, i) => {
+                    const div = document.createElement("div");
+                    div.className = "ticket-type";
+                    const allowed = (t.allowed_role_ids || []).join(",");
+                    div.innerHTML = `
+   <label>ID</label><input class="tt-id" value="${escAttr(t.id || "")}">
+   <label>Label do botão</label><input class="tt-label" value="${escAttr(t.label || "")}">
+   <label>Emoji do botão</label><input class="tt-emoji" value="${escAttr(t.emoji || "")}">
+   <label>Descrição interna do tipo</label><textarea class="tt-description">${esc(t.description || "")}</textarea>
+   <label>Estilo do botão: gray, red, green, blurple</label><input class="tt-style" value="${escAttr(t.style || "gray")}">
+   <label>Categoria específica ID desse tipo de ticket</label><input class="tt-category-id" value="${escAttr(t.category_id || "")}">
+   <label>Cargos com acesso a esse tipo, separados por vírgula</label><input class="tt-allowed-roles" value="${escAttr(allowed)}">
+   <button class="secondary" onclick="this.parentElement.remove()">Remover</button>
+  `;
+                    box.appendChild(div);
+                });
+            }
+
+            function getTicketTypesFromForm() {
+                return Array.from(document.querySelectorAll(".ticket-type"))
+                    .map((div) => ({
+                        id: div.querySelector(".tt-id").value.trim(),
+                        label: div.querySelector(".tt-label").value.trim(),
+                        emoji: div.querySelector(".tt-emoji").value.trim(),
+                        description: div
+                            .querySelector(".tt-description")
+                            .value.trim(),
+                        style:
+                            div.querySelector(".tt-style").value.trim() ||
+                            "gray",
+                        category_id: div
+                            .querySelector(".tt-category-id")
+                            .value.trim(),
+                        allowed_role_ids: div
+                            .querySelector(".tt-allowed-roles")
+                            .value.split(",")
+                            .map((x) => x.trim())
+                            .filter(Boolean),
+                    }))
+                    .filter((t) => t.id && t.label);
+            }
+
+            function addTicketType() {
+                const types = getTicketTypesFromForm();
+                types.push({
+                    id: "novo",
+                    label: "Novo",
+                    emoji: "🎫",
+                    description: "Descrição do ticket.",
+                    style: "gray",
+                    category_id: "",
+                    allowed_role_ids: [],
+                });
+                renderTicketTypes(types);
+            }
+
+            function setValue(id, v) {
+                const el = document.getElementById(id);
+                if (el) el.value = v;
+            }
+
+            async function setAppStatus(id, status) {
+                const res = await fetch(API + `/applications/${id}/status`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ status }),
+                });
+                if (!res.ok) {
+                    alert("Erro ao alterar status");
+                    return;
+                }
+                await loadDashboard();
+                alert(
+                    "Status atualizado. O bot deve sincronizar em até 3 segundos.",
+                );
+            }
+            async function setSuggestionStatus(id, status) {
+                const res = await fetch(API + `/suggestions/${id}/status`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ status }),
+                });
+                if (!res.ok) {
+                    alert("Erro ao alterar sugestão");
+                    return;
+                }
+                await loadDashboard();
+            }
+            async function saveSettings() {
+                const questions = allowlist_questions.value
+                    .split(/\r?\n/)
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+
+                const payload = {
+                    settings: {
+                        allowlist_title: allowlist_title.value,
+                        allowlist_description: allowlist_description.value,
+                        allowlist_footer: allowlist_footer.value,
+                        allowlist_image_url: allowlist_image_url.value,
+                        allowlist_thumbnail_url: allowlist_thumbnail_url.value,
+                        allowlist_category_id: allowlist_category_id.value,
+                        allowlist_questions: questions,
+                        staff_channel_id: staff_channel_id.value,
+                        suggestion_channel_id: suggestion_channel_id.value,
+                        approved_role_id: approved_role_id.value,
+                        remove_role_on_approved_id:
+                            remove_role_on_approved_id.value,
+                        interview_role_id: interview_role_id.value,
+                        approved_channel_id: approved_channel_id.value,
+                        rejected_channel_id: rejected_channel_id.value,
+                        autorole_role_id: autorole_role_id.value,
+                        bot_color: bot_color.value,
+                        ticket_panel_title: ticket_panel_title.value,
+                        ticket_panel_description:
+                            ticket_panel_description.value,
+                        ticket_panel_footer: ticket_panel_footer.value,
+                        ticket_panel_image_url: ticket_panel_image_url.value,
+                        ticket_panel_thumbnail_url:
+                            ticket_panel_thumbnail_url.value,
+                        ticket_panel_color: ticket_panel_color.value,
+                        ticket_category_id: ticket_category_id.value,
+                        ticket_staff_role_id: ticket_staff_role_id.value,
+                        logs_channel_id: logs_channel_id.value,
+                        ticket_types: getTicketTypesFromForm(),
+
+                        member_join_channel_id: member_join_channel_id.value,
+                        member_join_title: member_join_title.value,
+                        member_join_description: member_join_description.value,
+                        member_join_footer: member_join_footer.value,
+                        member_join_color: member_join_color.value,
+                        member_join_image_url: member_join_image_url.value,
+
+                        member_leave_channel_id: member_leave_channel_id.value,
+                        member_leave_title: member_leave_title.value,
+                        member_leave_description:
+                            member_leave_description.value,
+                        member_leave_footer: member_leave_footer.value,
+                        member_leave_color: member_leave_color.value,
+                        member_leave_image_url: member_leave_image_url.value,
+                    },
+                };
+                const res = await fetch(API + "/settings", {
+                    method: "PUT",
+                    headers: authHeaders(),
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                    alert("Erro ao salvar configurações");
+                    return;
+                }
+                await loadDashboard();
+                alert("Configurações salvas.");
+            }
+            function esc(str) {
+                return String(str || "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+            }
+            function escAttr(str) {
+                return esc(str).replaceAll("\\n", " ");
+            }
+            if (token) {
+                loadDashboard();
+            }
+        </script>
+    </body>
+</html>

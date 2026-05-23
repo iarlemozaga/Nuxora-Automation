@@ -1,0 +1,119 @@
+services:
+  nuxora-postgres:
+    image: postgres:16-alpine
+    container_name: nuxora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nuxora}
+      POSTGRES_USER: ${POSTGRES_USER:-nuxora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nuxora_password}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - nuxora
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-nuxora} -d ${POSTGRES_DB:-nuxora}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    cpus: 0.75
+    mem_limit: 768m
+    mem_reservation: 384m
+    pids_limit: 256
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nuxora-api:
+    build: ./api
+    container_name: nuxora-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      nuxora-postgres:
+        condition: service_healthy
+    networks:
+      - nuxora
+
+    cpus: 0.50
+    mem_limit: 384m
+    mem_reservation: 192m
+    pids_limit: 128
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nuxora-bot:
+    build: ./bot
+    container_name: nuxora-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      nuxora-postgres:
+        condition: service_healthy
+      nuxora-api:
+        condition: service_started
+    networks:
+      - nuxora
+
+    cpus: 0.75
+    mem_limit: 512m
+    mem_reservation: 256m
+    pids_limit: 256
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nuxora-web:
+    image: nginx:alpine
+    container_name: nuxora-web
+    restart: unless-stopped
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+    depends_on:
+      - nuxora-api
+    networks:
+      - nuxora
+
+    cpus: 0.25
+    mem_limit: 128m
+    mem_reservation: 64m
+    pids_limit: 64
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nuxora:
+    name: nuxora
