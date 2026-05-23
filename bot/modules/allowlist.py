@@ -1,12 +1,12 @@
-import os
-import json
 import asyncio
-import discord
-from discord.ext import commands
-from discord import app_commands
-from discord.ui import View
+import json
+import os
 
-from shared.db import settings, execute, row, now, log
+import discord
+from discord import app_commands
+from discord.ext import commands
+from discord.ui import View
+from shared.db import execute, log, now, row, settings
 
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 
@@ -16,6 +16,7 @@ ACTIVE_ALLOWLISTS = set()
 # =========================
 # HELPERS
 # =========================
+
 
 def parse_color(hex_color: str):
     try:
@@ -77,13 +78,13 @@ def get_nickname_from_answers(answers: list[dict]) -> str | None:
 
 
 async def change_member_nickname(
-    member: discord.Member,
-    answers: list[dict],
-    reason: str
+    member: discord.Member, answers: list[dict], reason: str
 ):
     print("=== TENTANDO ALTERAR NICKNAME ===", flush=True)
     print(f"Usuário alvo: {member} / {member.id}", flush=True)
-    print(f"Primeira resposta: {answers[0] if answers else 'SEM RESPOSTAS'}", flush=True)
+    print(
+        f"Primeira resposta: {answers[0] if answers else 'SEM RESPOSTAS'}", flush=True
+    )
 
     nickname = get_nickname_from_answers(answers)
 
@@ -94,19 +95,18 @@ async def change_member_nickname(
         return False
 
     try:
-        await member.edit(
-            nick=nickname,
-            reason=reason
-        )
+        await member.edit(nick=nickname, reason=reason)
 
-        print(f"✅ Nickname alterado com sucesso: {member.id} -> {nickname}", flush=True)
+        print(
+            f"✅ Nickname alterado com sucesso: {member.id} -> {nickname}", flush=True
+        )
         return True
 
     except discord.Forbidden:
         print(
             "❌ Discord Forbidden: sem permissão/hierarquia para alterar nickname. "
             "O cargo do bot precisa estar ACIMA do cargo mais alto do usuário.",
-            flush=True
+            flush=True,
         )
         return False
 
@@ -126,9 +126,9 @@ async def build_allowlist_panel_embed():
         title=cfg.get("allowlist_title", "Registro de Cidadania"),
         description=cfg.get(
             "allowlist_description",
-            "Clique no botão abaixo para iniciar sua allowlist."
+            "Clique no botão abaixo para iniciar sua allowlist.",
         ),
-        color=parse_color(cfg.get("bot_color", "#8B0000"))
+        color=parse_color(cfg.get("bot_color", "#8B0000")),
     )
 
     embed.add_field(
@@ -139,7 +139,7 @@ async def build_allowlist_panel_embed():
             "3️⃣ Responda as perguntas uma por uma\n"
             "4️⃣ Aguarde análise da equipe"
         ),
-        inline=False
+        inline=False,
     )
 
     footer = cfg.get("allowlist_footer", "")
@@ -158,23 +158,17 @@ async def build_allowlist_panel_embed():
 
 
 def build_staff_application_embeds(
-    app_id: int,
-    user: discord.Member | discord.User,
-    answers: list[dict],
-    color: int
+    app_id: int, user: discord.Member | discord.User, answers: list[dict], color: int
 ):
     embeds = []
 
     current = discord.Embed(
         title=f"📋 Nova Allowlist #{app_id}",
         description=f"Enviada por {user.mention}",
-        color=color
+        color=color,
     )
 
-    current.set_author(
-        name=user.display_name,
-        icon_url=user.display_avatar.url
-    )
+    current.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
     current.set_footer(text=f"User ID: {user.id}")
 
@@ -191,8 +185,7 @@ def build_staff_application_embeds(
                 embeds.append(current)
 
                 current = discord.Embed(
-                    title=f"📋 Nova Allowlist #{app_id} — continuação",
-                    color=color
+                    title=f"📋 Nova Allowlist #{app_id} — continuação", color=color
                 )
 
                 field_count = 0
@@ -203,9 +196,7 @@ def build_staff_application_embeds(
                 field_name += f" — parte {part_index}/{len(response_chunks)}"
 
             current.add_field(
-                name=field_name[:256],
-                value=part or "Sem resposta",
-                inline=False
+                name=field_name[:256], value=part or "Sem resposta", inline=False
             )
 
             field_count += 1
@@ -214,12 +205,13 @@ def build_staff_application_embeds(
 
     return embeds
 
+
 async def send_allowlist_result_channel(
     guild: discord.Guild,
     member: discord.Member,
     status: str,
     answers: list[dict],
-    cfg: dict
+    cfg: dict,
 ):
     if status == "approved":
         channel_id = int(cfg.get("approved_channel_id", "0") or 0)
@@ -237,7 +229,10 @@ async def send_allowlist_result_channel(
         return
 
     if not channel_id:
-        print(f"Canal público de resultado não configurado para status: {status}", flush=True)
+        print(
+            f"Canal público de resultado não configurado para status: {status}",
+            flush=True,
+        )
         return
 
     channel = guild.get_channel(channel_id)
@@ -251,11 +246,7 @@ async def send_allowlist_result_channel(
     if answers and answers[0].get("answer"):
         character_name = str(answers[0]["answer"]).strip().splitlines()[0][:64]
 
-    embed = discord.Embed(
-        title=title,
-        description=description,
-        color=color
-    )
+    embed = discord.Embed(title=title, description=description, color=color)
 
     # if character_name:
     #     embed.add_field(
@@ -264,23 +255,25 @@ async def send_allowlist_result_channel(
     #         inline=False
     #     )
 
-    embed.add_field(
-        name="Usuário",
-        value=f"{member.mention}",
-        inline=False
-    )
+    embed.add_field(name="Usuário", value=f"{member.mention}", inline=False)
 
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_footer(text="NightFall • Allowlist")
 
     try:
         await channel.send(embed=embed)
-        print(f"✅ Resultado público enviado para canal {channel_id}: {status}", flush=True)
+        print(
+            f"✅ Resultado público enviado para canal {channel_id}: {status}",
+            flush=True,
+        )
     except Exception as e:
         print(f"❌ Erro ao enviar resultado público da allowlist: {e}", flush=True)
+
+
 # =========================
 # BOTÕES DA STAFF
 # =========================
+
 
 class StaffDecisionView(View):
     def __init__(self, application_id: int, user_id: int):
@@ -294,7 +287,7 @@ class StaffDecisionView(View):
         status: str,
         title: str,
         color: discord.Color,
-        role_key: str | None = None
+        role_key: str | None = None,
     ):
         print("=== DECISÃO DE ALLOWLIST PELO DISCORD ===", flush=True)
         print(f"Application ID: {self.application_id}", flush=True)
@@ -302,14 +295,12 @@ class StaffDecisionView(View):
         print(f"Staff: {interaction.user} / {interaction.user.id}", flush=True)
 
         application = await row(
-            "SELECT * FROM applications WHERE id=?",
-            (self.application_id,)
+            "SELECT * FROM applications WHERE id=?", (self.application_id,)
         )
 
         if not application:
             await interaction.response.send_message(
-                "❌ Esta candidatura não existe mais no banco.",
-                ephemeral=True
+                "❌ Esta candidatura não existe mais no banco.", ephemeral=True
             )
             await interaction.message.edit(view=None)
             return
@@ -321,7 +312,7 @@ class StaffDecisionView(View):
             await interaction.response.send_message(
                 f"⚠️ Esta allowlist já foi finalizada como **{current_status}**. "
                 "Os botões foram bloqueados.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
@@ -337,8 +328,7 @@ class StaffDecisionView(View):
 
         if not member:
             await interaction.response.send_message(
-                "❌ Membro não encontrado no servidor.",
-                ephemeral=True
+                "❌ Membro não encontrado no servidor.", ephemeral=True
             )
             return
 
@@ -361,32 +351,47 @@ class StaffDecisionView(View):
             await change_member_nickname(
                 member=member,
                 answers=answers,
-                reason="Allowlist aprovada: primeira resposta usada como nome"
+                reason="Allowlist aprovada: primeira resposta usada como nome",
             )
 
-            # Remove cargo antigo ao aprovar, se configurado.
-            remove_role_id = int(cfg.get("remove_role_on_approved_id", "0") or 0)
+            # Remove cargos antigos ao aprovar, se configurado.
+            remove_roles_raw = str(cfg.get("remove_role_on_approved_id", "")).strip()
 
-            if remove_role_id:
-                remove_role = interaction.guild.get_role(remove_role_id)
+            if remove_roles_raw:
+                remove_role_ids = [
+                    r.strip()
+                    for r in remove_roles_raw.split(",")
+                    if r.strip().isdigit()
+                ]
 
-                if remove_role:
+                roles_to_remove = []
+
+                for role_id in remove_role_ids:
+                    role = interaction.guild.get_role(int(role_id))
+
+                    if role:
+                        roles_to_remove.append(role)
+                    else:
+                        print(
+                            f"⚠️ Cargo para remover não encontrado: {role_id}",
+                            flush=True,
+                        )
+
+                if roles_to_remove:
                     try:
                         await member.remove_roles(
-                            remove_role,
-                            reason="Allowlist aprovada: removendo cargo anterior"
+                            *roles_to_remove,
+                            reason="Allowlist aprovada: removendo cargos anteriores",
                         )
+
                         print(
-                            f"✅ Cargo removido ao aprovar: {remove_role.name} / {remove_role.id}",
-                            flush=True
+                            f"✅ Cargos removidos ao aprovar: "
+                            f"{', '.join([r.name for r in roles_to_remove])}",
+                            flush=True,
                         )
+
                     except Exception as e:
-                        print(f"❌ Erro ao remover cargo ao aprovar: {e}", flush=True)
-                else:
-                    print(
-                        f"⚠️ Cargo para remover não encontrado: {remove_role_id}",
-                        flush=True
-                    )
+                        print(f"❌ Erro ao remover cargos ao aprovar: {e}", flush=True)
 
         # Depois adiciona cargo.
         if role_key:
@@ -395,38 +400,40 @@ class StaffDecisionView(View):
 
             if role:
                 try:
-                    await member.add_roles(
-                        role,
-                        reason=f"Allowlist status: {status}"
-                    )
+                    await member.add_roles(role, reason=f"Allowlist status: {status}")
                     print(f"✅ Cargo adicionado: {role.name} / {role.id}", flush=True)
                 except Exception as e:
                     print(f"❌ Erro ao adicionar cargo: {e}", flush=True)
             else:
                 print(
                     f"⚠️ Cargo não encontrado para role_key={role_key}, role_id={role_id}",
-                    flush=True
-                )   
+                    flush=True,
+                )
 
         await execute(
             "UPDATE applications SET status=?, updated_at=? WHERE id=?",
-            (status, now(), self.application_id)
+            (status, now(), self.application_id),
         )
 
-        await log("application_decision_discord", {
-            "application_id": self.application_id,
-            "user_id": self.user_id,
-            "status": status,
-            "staff_id": interaction.user.id
-        })
+        await log(
+            "application_decision_discord",
+            {
+                "application_id": self.application_id,
+                "user_id": self.user_id,
+                "status": status,
+                "staff_id": interaction.user.id,
+            },
+        )
 
         result_embed = discord.Embed(
             title=title,
             description=f"Usuário: {member.mention}\nStatus: **{status}**",
-            color=color
+            color=color,
         )
 
-        old_embed = interaction.message.embeds[0] if interaction.message.embeds else None
+        old_embed = (
+            interaction.message.embeds[0] if interaction.message.embeds else None
+        )
 
         if old_embed:
             locked_embed = old_embed.copy()
@@ -435,7 +442,7 @@ class StaffDecisionView(View):
             locked_embed.add_field(
                 name="Resultado definido pela staff",
                 value=f"**{title}** por {interaction.user.mention}",
-                inline=False
+                inline=False,
             )
             await interaction.message.edit(embed=locked_embed, view=None)
         else:
@@ -448,7 +455,7 @@ class StaffDecisionView(View):
             member=member,
             status=status,
             answers=answers,
-            cfg=cfg
+            cfg=cfg,
         )
         try:
             await member.send(embed=result_embed)
@@ -458,55 +465,47 @@ class StaffDecisionView(View):
     @discord.ui.button(
         label="Aprovar",
         style=discord.ButtonStyle.green,
-        custom_id="staff_decision:approve"
+        custom_id="staff_decision:approve",
     )
     async def approve(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await self.finish(
             interaction=interaction,
             status="approved",
             title="✅ Allowlist aprovada",
             color=discord.Color.green(),
-            role_key="approved_role_id"
+            role_key="approved_role_id",
         )
 
     @discord.ui.button(
         label="Entrevista",
         style=discord.ButtonStyle.blurple,
-        custom_id="staff_decision:interview"
+        custom_id="staff_decision:interview",
     )
     async def interview(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await self.finish(
             interaction=interaction,
             status="interview",
             title="🎤 Encaminhado para entrevista",
             color=discord.Color.blurple(),
-            role_key="interview_role_id"
+            role_key="interview_role_id",
         )
 
     @discord.ui.button(
         label="Reprovar",
         style=discord.ButtonStyle.red,
-        custom_id="staff_decision:reject"
+        custom_id="staff_decision:reject",
     )
-    async def reject(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.finish(
             interaction=interaction,
             status="rejected",
             title="❌ Allowlist reprovada",
             color=discord.Color.red(),
-            role_key=None
+            role_key=None,
         )
 
 
@@ -514,9 +513,8 @@ class StaffDecisionView(View):
 # SISTEMA DE CANAL PRIVADO
 # =========================
 
-async def create_allowlist_channel(
-    interaction: discord.Interaction
-):
+
+async def create_allowlist_channel(interaction: discord.Interaction):
     cfg = await settings()
     guild = interaction.guild
     user = interaction.user
@@ -525,33 +523,29 @@ async def create_allowlist_channel(
     category = guild.get_channel(category_id) if category_id else None
 
     overwrites = {
-        guild.default_role: discord.PermissionOverwrite(
-            view_channel=False
-        ),
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
         user: discord.PermissionOverwrite(
             view_channel=True,
             send_messages=True,
             attach_files=True,
-            read_message_history=True
+            read_message_history=True,
         ),
         guild.me: discord.PermissionOverwrite(
             view_channel=True,
             send_messages=True,
             manage_channels=True,
-            read_message_history=True
-        )
+            read_message_history=True,
+        ),
     }
 
-    channel_name = safe_channel_name(
-        f"allowlist-{user.display_name}"
-    )
+    channel_name = safe_channel_name(f"allowlist-{user.display_name}")
 
     channel = await guild.create_text_channel(
         name=channel_name,
         category=category if isinstance(category, discord.CategoryChannel) else None,
         overwrites=overwrites,
         topic=f"allowlist_user_id={user.id}",
-        reason=f"Allowlist iniciada por {user}"
+        reason=f"Allowlist iniciada por {user}",
     )
 
     return channel
@@ -561,7 +555,7 @@ async def run_allowlist_session(
     bot: commands.Bot,
     guild: discord.Guild,
     user: discord.Member,
-    channel: discord.TextChannel
+    channel: discord.TextChannel,
 ):
     try:
         cfg = await settings()
@@ -572,10 +566,7 @@ async def run_allowlist_session(
             questions = []
 
         if not questions:
-            questions = [
-                "Nome do Personagem",
-                "Conte a história do seu personagem"
-            ]
+            questions = ["Nome do Personagem", "Conte a história do seu personagem"]
 
         color = parse_color(cfg.get("bot_color", "#8B0000"))
 
@@ -586,13 +577,10 @@ async def run_allowlist_session(
                 "A primeira resposta será usada como **nome do personagem** caso você seja aprovado.\n\n"
                 "Você tem **10 minutos** para responder cada pergunta."
             ),
-            color=color
+            color=color,
         )
 
-        await channel.send(
-            content=user.mention,
-            embed=intro_embed
-        )
+        await channel.send(content=user.mention, embed=intro_embed)
 
         answers = []
 
@@ -607,7 +595,7 @@ async def run_allowlist_session(
             question_embed = discord.Embed(
                 title=f"Pergunta {index}/{len(questions)}",
                 description=question,
-                color=color
+                color=color,
             )
 
             if index == 1:
@@ -618,17 +606,13 @@ async def run_allowlist_session(
             await channel.send(embed=question_embed)
 
             try:
-                message = await bot.wait_for(
-                    "message",
-                    check=check,
-                    timeout=600
-                )
+                message = await bot.wait_for("message", check=check, timeout=600)
 
             except asyncio.TimeoutError:
                 timeout_embed = discord.Embed(
                     title="⏰ Tempo esgotado",
                     description="Você demorou muito para responder. A allowlist foi cancelada.",
-                    color=discord.Color.red()
+                    color=discord.Color.red(),
                 )
 
                 await channel.send(embed=timeout_embed)
@@ -655,10 +639,7 @@ async def run_allowlist_session(
             if not answer_text:
                 answer_text = "Sem resposta"
 
-            answers.append({
-                "question": question,
-                "answer": answer_text
-            })
+            answers.append({"question": question, "answer": answer_text})
 
             try:
                 await message.add_reaction("✅")
@@ -667,7 +648,7 @@ async def run_allowlist_session(
 
         existing = await row(
             "SELECT id FROM applications WHERE discord_id=? AND status='pending'",
-            (str(user.id),)
+            (str(user.id),),
         )
 
         if existing:
@@ -696,8 +677,8 @@ async def run_allowlist_session(
                 "pending",
                 json.dumps(answers, ensure_ascii=False),
                 now(),
-                now()
-            )
+                now(),
+            ),
         )
 
         staff_channel_id = int(cfg.get("staff_channel_id", "0") or 0)
@@ -710,15 +691,11 @@ async def run_allowlist_session(
             return
 
         embeds = build_staff_application_embeds(
-            app_id=app_id,
-            user=user,
-            answers=answers,
-            color=color
+            app_id=app_id, user=user, answers=answers, color=color
         )
 
         staff_message = await staff_channel.send(
-            embed=embeds[0],
-            view=StaffDecisionView(app_id, user.id)
+            embed=embeds[0], view=StaffDecisionView(app_id, user.id)
         )
 
         for embed in embeds[1:]:
@@ -726,14 +703,13 @@ async def run_allowlist_session(
 
         await execute(
             "UPDATE applications SET staff_note=? WHERE id=?",
-            (f"staff_message_id:{staff_message.id}", app_id)
+            (f"staff_message_id:{staff_message.id}", app_id),
         )
 
-        await log("application_created", {
-            "application_id": app_id,
-            "user_id": user.id,
-            "source": "private_channel"
-        })
+        await log(
+            "application_created",
+            {"application_id": app_id, "user_id": user.id, "source": "private_channel"},
+        )
 
         done_embed = discord.Embed(
             title="✅ Allowlist enviada",
@@ -741,7 +717,7 @@ async def run_allowlist_session(
                 "Sua allowlist foi enviada para análise da equipe.\n\n"
                 "Este canal será fechado em alguns segundos."
             ),
-            color=discord.Color.green()
+            color=discord.Color.green(),
         )
 
         await channel.send(embed=done_embed)
@@ -761,6 +737,7 @@ async def run_allowlist_session(
 # BOTÃO INICIAR ALLOWLIST
 # =========================
 
+
 class AllowlistStartView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -769,31 +746,25 @@ class AllowlistStartView(View):
         label="REQUISITAR CIDADANIA",
         style=discord.ButtonStyle.red,
         emoji="📑",
-        custom_id="allowlist:start"
+        custom_id="allowlist:start",
     )
-    async def start(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    async def start(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
 
         if user.id in ACTIVE_ALLOWLISTS:
             await interaction.response.send_message(
-                "⚠️ Você já está respondendo uma allowlist.",
-                ephemeral=True
+                "⚠️ Você já está respondendo uma allowlist.", ephemeral=True
             )
             return
 
         existing = await row(
             "SELECT id FROM applications WHERE discord_id=? AND status='pending'",
-            (str(user.id),)
+            (str(user.id),),
         )
 
         if existing:
             await interaction.response.send_message(
-                "⚠️ Você já possui uma allowlist pendente.",
-                ephemeral=True
+                "⚠️ Você já possui uma allowlist pendente.", ephemeral=True
             )
             return
 
@@ -803,18 +774,14 @@ class AllowlistStartView(View):
             channel = await create_allowlist_channel(interaction)
 
             await interaction.response.send_message(
-                f"✅ Canal privado criado: {channel.mention}",
-                ephemeral=True
+                f"✅ Canal privado criado: {channel.mention}", ephemeral=True
             )
 
             bot = interaction.client
 
             asyncio.create_task(
                 run_allowlist_session(
-                    bot=bot,
-                    guild=interaction.guild,
-                    user=user,
-                    channel=channel
+                    bot=bot, guild=interaction.guild, user=user, channel=channel
                 )
             )
 
@@ -822,14 +789,14 @@ class AllowlistStartView(View):
             ACTIVE_ALLOWLISTS.discard(user.id)
 
             await interaction.response.send_message(
-                f"❌ Erro ao criar canal de allowlist: `{e}`",
-                ephemeral=True
+                f"❌ Erro ao criar canal de allowlist: `{e}`", ephemeral=True
             )
 
 
 # =========================
 # COG
 # =========================
+
 
 class Allowlist(commands.Cog):
     def __init__(self, bot):
@@ -838,19 +805,21 @@ class Allowlist(commands.Cog):
 
     @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(
-        name="painel_allowlist",
-        description="Envia ou atualiza o painel de allowlist"
+        name="painel_allowlist", description="Envia ou atualiza o painel de allowlist"
     )
     @app_commands.default_permissions(manage_guild=True)
-    async def painel_allowlist(
-        self,
-        interaction: discord.Interaction
-    ):
+    async def painel_allowlist(self, interaction: discord.Interaction):
         embed = await build_allowlist_panel_embed()
 
-        message = await interaction.channel.send(
-            embed=embed,
-            view=AllowlistStartView()
+        message = await interaction.channel.send(embed=embed, view=AllowlistStartView())
+
+        await execute(
+            """
+            INSERT INTO settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value
+            """,
+            ("allowlist_panel_channel_id", str(interaction.channel.id)),
         )
 
         await execute(
@@ -859,21 +828,11 @@ class Allowlist(commands.Cog):
             VALUES (?, ?)
             ON CONFLICT(key) DO UPDATE SET value=excluded.value
             """,
-            ("allowlist_panel_channel_id", str(interaction.channel.id))
-        )
-
-        await execute(
-            """
-            INSERT INTO settings (key, value)
-            VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value
-            """,
-            ("allowlist_panel_message_id", str(message.id))
+            ("allowlist_panel_message_id", str(message.id)),
         )
 
         await interaction.response.send_message(
-            "✅ Painel de allowlist enviado e vinculado ao dashboard.",
-            ephemeral=True
+            "✅ Painel de allowlist enviado e vinculado ao dashboard.", ephemeral=True
         )
 
 
