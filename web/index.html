@@ -2,409 +2,96 @@
 <html lang="pt-BR">
     <head>
         <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, user-scalable=yes"
-        />
-        <title>Nuxora • Painel de Gestão</title>
-        <!-- Google Fonts: Inter + Poppins para contraste -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Nuxora • Painel de Controle</title>
+
         <link
-            href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Poppins:wght@500;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700&display=swap"
             rel="stylesheet"
         />
-        <!-- Font Awesome 6 (gratuito) para ícones modernos -->
         <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
         />
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
 
-            body {
-                background: #f4f7fc;
-                font-family:
-                    "Inter",
-                    -apple-system,
-                    BlinkMacSystemFont,
-                    sans-serif;
-                color: #1e2a3e;
-                line-height: 1.5;
-            }
-
-            /* LAYOUT PRINCIPAL: SIDEBAR + CONTEÚDO */
-            .app-container {
-                display: flex;
-                min-height: 100vh;
-            }
-
-            /* SIDEBAR MODERNA */
-            .sidebar {
-                width: 280px;
-                background: white;
-                backdrop-filter: blur(0);
-                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.03);
-                border-right: 1px solid #e2edf2;
-                padding: 2rem 1.5rem;
-                position: sticky;
-                top: 0;
-                height: 100vh;
-                display: flex;
-                flex-direction: column;
-                z-index: 10;
-            }
-
-            .logo-area {
-                margin-bottom: 2.5rem;
-                padding-bottom: 1rem;
-                border-bottom: 2px solid #eef2f8;
-            }
-
-            .logo-area h2 {
-                font-family: "Poppins", sans-serif;
-                font-weight: 700;
-                font-size: 1.6rem;
-                background: linear-gradient(120deg, #1e5f8e, #2c9cd4);
-                background-clip: text;
-                -webkit-background-clip: text;
-                color: transparent;
-            }
-
-            .logo-area p {
-                font-size: 0.75rem;
-                color: #6c86a3;
-                margin-top: 4px;
-            }
-
-            .nav-buttons {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                flex: 1;
-            }
-
-            .nav-btn {
-                background: transparent;
-                border: none;
-                padding: 12px 20px;
-                border-radius: 18px;
-                font-weight: 500;
-                font-size: 0.95rem;
-                text-align: left;
-                display: flex;
-                align-items: center;
-                gap: 14px;
-                cursor: pointer;
-                transition: 0.2s;
-                color: #3a5670;
-                font-family: "Inter", sans-serif;
-            }
-
-            .nav-btn i {
-                width: 24px;
-                font-size: 1.2rem;
-            }
-
-            .nav-btn.active {
-                background: #eef2ff;
-                color: #1e6faf;
-                font-weight: 600;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-            }
-
-            .nav-btn:hover:not(.active) {
-                background: #f0f4fa;
-                color: #1e5f8e;
-            }
-
-            /* ÁREA DE CONTEÚDO PRINCIPAL */
-            .main-content {
-                flex: 1;
-                padding: 2rem 2rem 3rem;
-                overflow-x: auto;
-            }
-
-            /* header superior simples */
-            .top-bar {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 2rem;
-                background: white;
-                padding: 0.8rem 1.8rem;
-                border-radius: 2rem;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-                border: 1px solid #eaf0f5;
-            }
-
-            .page-title {
-                font-weight: 700;
-                font-size: 1.5rem;
-                color: #1f4868;
-            }
-
-            #status {
-                background: #e8f0fe;
-                padding: 6px 20px;
-                border-radius: 40px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                color: #1e6faf;
-            }
-
-            /* CARDS MODERNOS (sem vidro pesado, mas com elevação) */
-            .card {
-                background: white;
-                border-radius: 2rem;
-                padding: 1.8rem;
-                margin-bottom: 2rem;
-                box-shadow:
-                    0 10px 25px -5px rgba(0, 0, 0, 0.03),
-                    0 8px 10px -6px rgba(0, 0, 0, 0.02);
-                border: 1px solid #eef2f8;
-                transition: transform 0.1s ease;
-            }
-
-            h2 {
-                font-size: 1.5rem;
-                font-weight: 700;
-                color: #1f4868;
-                margin-bottom: 1.4rem;
-                letter-spacing: -0.3px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-
-            h2 i {
-                color: #2c9cd4;
-                font-size: 1.6rem;
-            }
-
-            h3 {
-                font-size: 1.2rem;
-                font-weight: 600;
-                margin: 1.2rem 0 0.8rem;
-                color: #2c6288;
-            }
-
-            hr {
-                margin: 1.8rem 0;
-                border: none;
-                height: 1px;
-                background: linear-gradient(90deg, #cbdde9, transparent);
-            }
-
-            /* inputs minimalistas */
-            label {
-                font-weight: 500;
-                font-size: 0.8rem;
-                color: #4a6a85;
-                margin-left: 6px;
-                display: block;
-                margin-bottom: 4px;
-            }
-
-            input,
-            textarea,
-            select {
-                width: 100%;
-                padding: 12px 16px;
-                background: #fefefe;
-                border: 1px solid #dce5ec;
-                border-radius: 1.2rem;
-                font-family: "Inter", monospace;
-                font-size: 0.9rem;
-                transition: 0.2s;
-                margin-bottom: 16px;
-                outline: none;
-            }
-
-            input:focus,
-            textarea:focus {
-                border-color: #2c9cd4;
-                box-shadow: 0 0 0 3px #2c9cd430;
-            }
-
-            /* botões com estilo suave */
-            button {
-                font-family: "Inter", sans-serif;
-                font-weight: 600;
-                padding: 10px 22px;
-                border-radius: 2rem;
-                border: none;
-                cursor: pointer;
-                font-size: 0.85rem;
-                background: #f0f4fa;
-                color: #1f5e8e;
-                transition: 0.2s;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                margin: 4px 8px 4px 0;
-            }
-
-            button:hover {
-                background: #e5edf6;
-                transform: translateY(-1px);
-            }
-
-            button.green {
-                background: #dff5e8;
-                color: #11734c;
-            }
-            button.green:hover {
-                background: #c8e6d9;
-            }
-
-            button.blue {
-                background: #e0edfc;
-                color: #1e6faf;
-            }
-            button.blue:hover {
-                background: #cde2fa;
-            }
-
-            button.secondary {
-                background: #f1f3f7;
-                border: 1px solid #ccdae5;
-            }
-
-            /* filtros estilo chips */
-            .filters {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                margin-bottom: 1.5rem;
-            }
-            .filters button {
-                background: white;
-                border: 1px solid #d0dee9;
-            }
-            .filters button.active {
-                background: #2c9cd4;
-                color: white;
-                border-color: #2c9cd4;
-            }
-
-            /* tabelas limpas */
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.85rem;
-            }
-            th,
-            td {
-                padding: 14px 10px;
-                text-align: left;
-                border-bottom: 1px solid #e6edf2;
-            }
-            th {
-                font-weight: 700;
-                color: #2c5a7a;
-                background: #f9fbfd;
-            }
-            tr:hover td {
-                background: #fafcff;
-            }
-
-            /* estatísticas em grid elegante */
-            .grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 1.2rem;
-            }
-            .stat {
-                background: #fbfdff;
-                border-radius: 1.5rem;
-                padding: 1rem 0.5rem;
-                text-align: center;
-                border: 1px solid #e2ecf3;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-            }
-            .stat b {
-                font-size: 2.2rem;
-                font-weight: 800;
-                display: block;
-                color: #1e6faf;
-                margin-top: 6px;
-            }
-
-            /* ticket types */
-            .ticket-type {
-                background: #f9fbfd;
-                border-radius: 1.2rem;
-                padding: 1rem;
-                margin: 1rem 0;
-                border: 1px solid #dee9f0;
-            }
-
-            /* login card central */
-            #login {
-                max-width: 450px;
-                margin: 10vh auto;
-                text-align: center;
-                background: white;
-                border-radius: 2rem;
-                box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.05);
-                border: 1px solid #eaf0f5;
-            }
-
-            .hidden {
-                display: none;
-            }
-
-            /* responsivo */
-            @media (max-width: 800px) {
-                .app-container {
-                    flex-direction: column;
-                }
-                .sidebar {
-                    width: 100%;
-                    height: auto;
-                    position: relative;
-                    flex-direction: row;
-                    flex-wrap: wrap;
-                    padding: 1rem;
-                }
-                .nav-buttons {
-                    flex-direction: row;
-                    flex-wrap: wrap;
-                }
-                .main-content {
-                    padding: 1.5rem;
-                }
-            }
-        </style>
+        <link rel="stylesheet" href="style.css" />
     </head>
+
     <body>
         <div class="app-container">
-            <!-- SIDEBAR moderna -->
-            <aside class="sidebar">
+            <aside id="sidebar" class="sidebar hidden">
                 <div class="logo-area">
                     <h2><i class="fas fa-crown"></i> Nuxora</h2>
                     <p>Painel de Controle</p>
                 </div>
-                <div class="nav-buttons" id="sidebarNav">
-                    <button class="nav-btn" data-tab="dashboard">
-                        <i class="fas fa-chart-line"></i> Dashboard
-                    </button>
-                    <button class="nav-btn" data-tab="applications">
-                        <i class="fas fa-clipboard-list"></i> Allowlist
-                    </button>
-                    <button class="nav-btn" data-tab="suggestions">
-                        <i class="fas fa-lightbulb"></i> Sugestões
-                    </button>
-                    <button class="nav-btn" data-tab="tickets">
-                        <i class="fas fa-ticket-alt"></i> Tickets
-                    </button>
-                    <button class="nav-btn" data-tab="settings">
-                        <i class="fas fa-sliders-h"></i> Configurações
+
+                <div id="guildBox" class="guild-box hidden">
+                    <small>Servidor atual</small>
+                    <select id="guildSelector"></select>
+                    <button type="button" id="btnManageServers">
+                        <i class="fas fa-plus"></i> Gerenciar
                     </button>
                 </div>
+
+                <div class="nav-buttons" id="sidebarNav">
+                    <button class="nav-btn" type="button" data-tab="dashboard">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </button>
+
+                    <button
+                        class="nav-btn"
+                        type="button"
+                        data-tab="applications"
+                    >
+                        <i class="fas fa-clipboard-list"></i> Allowlist
+                    </button>
+
+                    <button
+                        class="nav-btn"
+                        type="button"
+                        data-tab="suggestions"
+                    >
+                        <i class="fas fa-lightbulb"></i> Sugestões
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="tickets">
+                        <i class="fas fa-ticket-alt"></i> Tickets
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="settings">
+                        <i class="fas fa-sliders-h"></i> Configurações
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="servers">
+                        <i class="fas fa-server"></i> Servidores
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="embeds">
+                        <i class="fas fa-message"></i> Embeds
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="lives">
+                        <i class="fas fa-video"></i> Lives
+                    </button>
+
+                    <button class="nav-btn" type="button" data-tab="account">
+                        <i class="fas fa-key"></i> Minha conta
+                    </button>
+
+                    <button
+                        class="nav-btn"
+                        type="button"
+                        data-tab="admin"
+                        id="adminNavBtn"
+                    >
+                        <i class="fas fa-user-shield"></i> Admin
+                    </button>
+
+                    <button class="nav-btn" type="button" id="btnLogout">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
+
                 <div
                     style="
                         margin-top: auto;
@@ -414,21 +101,23 @@
                         padding-top: 20px;
                     "
                 >
-                    <i class="fas fa-shield-alt"></i> Nuxora
+                    <i class="fas fa-shield-alt"></i> Nuxora SaaS
                 </div>
             </aside>
 
             <main class="main-content">
-                <div class="top-bar">
+                <div id="topBar" class="top-bar hidden">
                     <div class="page-title" id="currentPageLabel">
                         Dashboard
                     </div>
-                    <span id="status">Online</span>
+                    <span id="status">offline</span>
                 </div>
 
-                <!-- login section (aparece quando desconectado) -->
                 <section id="login" class="card">
-                    <h2><i class="fas fa-lock"></i> Acesso restrito</h2>
+                    <h2><i class="fas fa-lock"></i> Acesso Nuxora</h2>
+                    <p class="muted">Entre com sua conta Nuxora.</p>
+                    <br />
+
                     <input id="username" value="admin" placeholder="Usuário" />
                     <input
                         id="password"
@@ -437,25 +126,25 @@
                         placeholder="Senha"
                     />
                     <button
-                        onclick="login()"
-                        style="
-                            background: #2c9cd4;
-                            color: white;
-                            width: 100%;
-                            justify-content: center;
-                        "
+                        id="btnLogin"
+                        class="primary"
+                        type="button"
+                        style="width: 100%; justify-content: center"
                     >
-                        Entrar no painel
+                        Entrar
                     </button>
+
+                    <p class="muted" style="margin-top: 12px">
+                        Contas são criadas apenas pelo administrador.
+                    </p>
                 </section>
 
-                <!-- APP principal (todas as abas) -->
                 <section id="app" class="hidden">
-                    <!-- DASHBOARD -->
                     <section id="tab-dashboard" class="card">
                         <h2>
                             <i class="fas fa-chart-simple"></i> Resumo executivo
                         </h2>
+
                         <div class="grid">
                             <div class="stat">
                                 Total de inscrições <b id="stat-apps">0</b>
@@ -475,170 +164,538 @@
                         </div>
                     </section>
 
-                    <!-- ALLOWLIST -->
+                    <section id="tab-servers" class="card hidden">
+                        <h2><i class="fas fa-server"></i> Meus servidores</h2>
+
+                        <p class="muted">
+                            O servidor é vinculado pela administração. Depois
+                            que o admin vincular seu servidor, use o botão
+                            abaixo para convidar o bot. Se tentar convidar em
+                            servidor não autorizado, o bot sairá
+                            automaticamente.
+                        </p>
+
+                        <br />
+
+                        <button class="primary" type="button" id="btnInviteBot">
+                            <i class="fab fa-discord"></i> Convidar bot
+                        </button>
+
+                        <div id="guilds-list"></div>
+                    </section>
+
+                    <section id="tab-embeds" class="card hidden">
+                        <h2><i class="fas fa-message"></i> Enviar Embed</h2>
+
+                        <p class="muted">
+                            Envie uma mensagem embed para um canal do servidor
+                            selecionado.
+                        </p>
+
+                        <br />
+
+                        <label>ID do canal</label>
+                        <input
+                            id="embed_channel_id"
+                            placeholder="ID do canal onde será enviado"
+                        />
+
+                        <label>Título</label>
+                        <input id="embed_title" placeholder="Título do embed" />
+
+                        <label>Descrição</label>
+                        <textarea
+                            id="embed_description"
+                            rows="8"
+                            placeholder="Texto do embed"
+                        ></textarea>
+
+                        <label>Cor HEX</label>
+                        <input id="embed_color" value="#8B0000" />
+
+                        <label>Rodapé</label>
+                        <input
+                            id="embed_footer"
+                            placeholder="Rodapé opcional"
+                        />
+
+                        <label>Imagem URL</label>
+                        <input id="embed_image_url" placeholder="https://..." />
+
+                        <label>Thumbnail URL</label>
+                        <input
+                            id="embed_thumbnail_url"
+                            placeholder="https://..."
+                        />
+
+                        <button class="primary" type="button" id="btnSendEmbed">
+                            <i class="fas fa-paper-plane"></i> Enviar embed
+                        </button>
+                    </section>
+
+                    <section id="tab-lives" class="card hidden">
+                        <h2>
+                            <i class="fas fa-video"></i> Notificações de Lives
+                        </h2>
+
+                        <p class="muted">
+                            Cadastre streamers da Twitch para o bot avisar
+                            automaticamente quando a live começar.
+                        </p>
+
+                        <br />
+
+                        <label>Login do streamer na Twitch</label>
+                        <input
+                            id="live_streamer_login"
+                            placeholder="ex: gaules"
+                        />
+
+                        <label>ID do canal do Discord para avisar</label>
+                        <input
+                            id="live_discord_channel_id"
+                            placeholder="123456789012345678"
+                        />
+
+                        <label>Mensagem acima do embed</label>
+                        <input
+                            id="live_message"
+                            value="🔴 {streamer} está ao vivo!"
+                        />
+
+                        <label>Título do embed</label>
+                        <input
+                            id="live_embed_title"
+                            value="{streamer} iniciou uma live"
+                        />
+
+                        <label>Descrição do embed</label>
+                        <textarea id="live_embed_description" rows="6">
+**{title}**
+Jogando: {game}
+Assista: {url}</textarea
+                        >
+
+                        <label>Cor HEX</label>
+                        <input id="live_embed_color" value="#9146FF" />
+
+                        <label>
+                            <input
+                                id="live_is_enabled"
+                                type="checkbox"
+                                checked
+                                style="width: auto; margin-right: 8px"
+                            />
+                            Ativar notificação
+                        </label>
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnAddLiveNotification"
+                        >
+                            <i class="fas fa-plus"></i> Salvar notificação
+                        </button>
+
+                        <hr />
+
+                        <h3>Lives configuradas</h3>
+                        <div id="live-notifications-list"></div>
+                    </section>
+
+                    <section id="tab-account" class="card hidden">
+                        <h2><i class="fas fa-key"></i> Minha conta</h2>
+
+                        <label>Senha atual</label>
+                        <input
+                            id="current_password"
+                            type="password"
+                            placeholder="Senha atual"
+                        />
+
+                        <label>Nova senha</label>
+                        <input
+                            id="new_password"
+                            type="password"
+                            placeholder="Nova senha"
+                        />
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnChangePassword"
+                        >
+                            <i class="fas fa-save"></i> Alterar senha
+                        </button>
+                    </section>
+
+                    <section id="tab-admin" class="card hidden">
+                        <h2><i class="fas fa-user-shield"></i> Painel Admin</h2>
+
+                        <h3>Criar cliente</h3>
+
+                        <label>Usuário</label>
+                        <input id="admin_new_username" placeholder="cliente1" />
+
+                        <label>Senha</label>
+                        <input
+                            id="admin_new_password"
+                            placeholder="senha temporária"
+                        />
+
+                        <label>E-mail</label>
+                        <input
+                            id="admin_new_email"
+                            placeholder="cliente@email.com"
+                        />
+
+                        <label>Tipo de conta</label>
+                        <select id="admin_new_role">
+                            <option value="customer">Cliente</option>
+                            <option value="admin">Admin</option>
+                        </select>
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnAdminCreateUser"
+                        >
+                            <i class="fas fa-user-plus"></i> Criar cliente
+                        </button>
+
+                        <hr />
+
+                        <h3>Vincular servidor a cliente</h3>
+
+                        <label>Cliente</label>
+                        <select id="admin_link_user_id"></select>
+
+                        <label>ID do servidor Discord</label>
+                        <input
+                            id="admin_link_guild_id"
+                            placeholder="123456789012345678"
+                        />
+
+                        <label>Nome do servidor</label>
+                        <input
+                            id="admin_link_guild_name"
+                            placeholder="Servidor RP do Cliente"
+                        />
+
+                        <label>Plano</label>
+                        <input id="admin_link_plan" value="manual" />
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnAdminLinkGuild"
+                        >
+                            <i class="fas fa-link"></i> Vincular servidor
+                        </button>
+
+                        <hr />
+
+                        <h3>Clientes</h3>
+                        <div id="admin-users-list"></div>
+
+                        <hr />
+
+                        <h3>Servidores vinculados</h3>
+                        <div id="admin-guilds-list"></div>
+                    </section>
+
                     <section id="tab-applications" class="card hidden">
                         <h2>
                             <i class="fas fa-file-alt"></i> Gerenciar Allowlist
                         </h2>
+
                         <div class="filters">
-                            <button
-                                id="filter-all"
-                                onclick="setApplicationFilter('all')"
-                            >
-                                Todas
-                            </button>
-                            <button
-                                id="filter-pending"
-                                onclick="setApplicationFilter('pending')"
-                            >
+                            <button type="button" id="filter-all">Todas</button>
+                            <button type="button" id="filter-pending">
                                 Pendentes
                             </button>
-                            <button
-                                id="filter-approved"
-                                onclick="setApplicationFilter('approved')"
-                            >
+                            <button type="button" id="filter-approved">
                                 Aprovadas
                             </button>
-                            <button
-                                id="filter-rejected"
-                                onclick="setApplicationFilter('rejected')"
-                            >
+                            <button type="button" id="filter-rejected">
                                 Rejeitadas
                             </button>
-                            <button
-                                id="filter-interview"
-                                onclick="setApplicationFilter('interview')"
-                            >
+                            <button type="button" id="filter-interview">
                                 Entrevista
                             </button>
                         </div>
+
                         <div id="applications-table"></div>
                     </section>
 
-                    <!-- SUGESTÕES -->
                     <section id="tab-suggestions" class="card hidden">
-                        <h2>
-                            <i class="fas fa-comment-dots"></i> Sugestões da
-                            comunidade
-                        </h2>
+                        <h2><i class="fas fa-comment-dots"></i> Sugestões</h2>
                         <div id="suggestions-table"></div>
                     </section>
 
-                    <!-- TICKETS -->
                     <section id="tab-tickets" class="card hidden">
                         <h2>
                             <i class="fas fa-ticket-alt"></i> Configuração de
                             Tickets
                         </h2>
-                        <label>Título do painel de tickets</label
-                        ><input id="ticket_panel_title" />
-                        <label>Descrição personalizada</label
-                        ><textarea id="ticket_panel_description"></textarea>
-                        <label>Rodapé do painel</label
-                        ><input id="ticket_panel_footer" />
-                        <label>Imagem/banner URL</label
-                        ><input id="ticket_panel_image_url" />
-                        <label>Thumbnail/logo URL</label
-                        ><input id="ticket_panel_thumbnail_url" />
-                        <label>Cor HEX</label><input id="ticket_panel_color" />
-                        <label>Categoria padrão ID</label
-                        ><input id="ticket_category_id" />
-                        <label>Cargo padrão da staff ID</label
-                        ><input id="ticket_staff_role_id" />
-                        <label>Canal de logs ID</label
-                        ><input id="logs_channel_id" />
+
+                        <label>Título do painel de tickets</label>
+                        <input id="ticket_panel_title" />
+
+                        <label>Descrição personalizada</label>
+                        <textarea id="ticket_panel_description"></textarea>
+
+                        <label>Rodapé do painel</label>
+                        <input id="ticket_panel_footer" />
+
+                        <label>Imagem/banner URL</label>
+                        <input id="ticket_panel_image_url" />
+
+                        <label>Thumbnail/logo URL</label>
+                        <input id="ticket_panel_thumbnail_url" />
+
+                        <label>Cor HEX</label>
+                        <input id="ticket_panel_color" />
+
+                        <label>Categoria padrão ID</label>
+                        <input id="ticket_category_id" />
+
+                        <label>Cargo padrão da staff ID</label>
+                        <input id="ticket_staff_role_id" />
+
+                        <label>Canal de logs ID</label>
+                        <input id="logs_channel_id" />
+
                         <h3>Tipos de Ticket</h3>
-                        <p><small>Campos vazios = usa padrão.</small></p>
                         <div id="ticket-types"></div>
-                        <button class="secondary" onclick="addTicketType()">
+
+                        <button type="button" id="btnAddTicketType">
                             <i class="fas fa-plus"></i> Adicionar tipo
                         </button>
-                        <button onclick="saveSettings()">
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnSaveTickets"
+                        >
                             <i class="fas fa-save"></i> Salvar tickets
                         </button>
                     </section>
 
-                    <!-- CONFIGURAÇÕES GERAIS -->
                     <section id="tab-settings" class="card hidden">
                         <h2>
                             <i class="fas fa-cog"></i> Configurações da
                             plataforma
                         </h2>
-                        <label>Título da allowlist</label
-                        ><input id="allowlist_title" />
-                        <label>Descrição do painel</label
-                        ><textarea id="allowlist_description"></textarea>
-                        <label>Rodapé</label><input id="allowlist_footer" />
-                        <label>Imagem/banner URL</label
-                        ><input id="allowlist_image_url" />
-                        <label>Thumbnail/logo URL</label
-                        ><input id="allowlist_thumbnail_url" />
-                        <label>Categoria dos canais de Allowlist ID</label
-                        ><input id="allowlist_category_id" />
-                        <label>Perguntas (uma por linha)</label
-                        ><textarea id="allowlist_questions" rows="6"></textarea>
-                        <label>Canal Staff ID</label
-                        ><input id="staff_channel_id" />
-                        <label>Canal Sugestões ID</label
-                        ><input id="suggestion_channel_id" />
-                        <label>Cargo Aprovado ID</label
-                        ><input id="approved_role_id" />
+
+                        <label>Título da allowlist</label>
+                        <input id="allowlist_title" />
+
+                        <label>Descrição do painel</label>
+                        <textarea id="allowlist_description"></textarea>
+
+                        <label>Rodapé</label>
+                        <input id="allowlist_footer" />
+
+                        <label>Imagem/banner URL</label>
+                        <input id="allowlist_image_url" />
+
+                        <label>Thumbnail/logo URL</label>
+                        <input id="allowlist_thumbnail_url" />
+
+                        <label>Categoria dos canais de Allowlist ID</label>
+                        <input id="allowlist_category_id" />
+
+                        <label>Perguntas, uma por linha</label>
+                        <textarea id="allowlist_questions" rows="6"></textarea>
+
+                        <label>Canal Staff ID</label>
+                        <input id="staff_channel_id" />
+
+                        <label>Canal Sugestões ID</label>
+                        <input id="suggestion_channel_id" />
+
+                        <label>Cargo Aprovado ID</label>
+                        <input id="approved_role_id" />
+
                         <label
-                            >Cargos para remover quando aprovar ID (separados
-                            por vírgula)</label
-                        ><input id="remove_role_on_approved_id" />
-                        <label>Cargo Entrevista ID</label
-                        ><input id="interview_role_id" />
-                        <label>Canal de Aprovados ID</label
-                        ><input id="approved_channel_id" />
-                        <label>Canal de Reprovados ID</label
-                        ><input id="rejected_channel_id" />
-                        <label>Autorole ID (entrada)</label
-                        ><input id="autorole_role_id" />
-                        <label>Cor HEX do bot</label><input id="bot_color" />
+                            >Cargos para remover ao aprovar, separados por
+                            vírgula</label
+                        >
+                        <input id="remove_role_on_approved_id" />
+
+                        <label>Cargo Entrevista ID</label>
+                        <input id="interview_role_id" />
+
+                        <label>Canal de Aprovados ID</label>
+                        <input id="approved_channel_id" />
+
+                        <label>Canal de Reprovados ID</label>
+                        <input id="rejected_channel_id" />
+
+                        <label>Autorole ID</label>
+                        <input id="autorole_role_id" />
+
+                        <label>Cor HEX do bot</label>
+                        <input id="bot_color" />
 
                         <hr />
-                        <h3>
-                            <i class="fas fa-door-open"></i> Embed de Entrada e
-                            Saída
-                        </h3>
-                        <h4>👋 Entrada de membros</h4>
-                        <label>Canal de entrada ID</label
-                        ><input id="member_join_channel_id" />
-                        <label>Título da embed</label
-                        ><input id="member_join_title" />
-                        <label>Descrição</label
-                        ><textarea
+
+                        <h3>Perfil do bot neste servidor</h3>
+                        <p class="muted">
+                            Personalize como o bot aparece neste servidor
+                            vinculado. Use URLs públicas HTTPS para avatar e
+                            banner.
+                        </p>
+
+                        <label>Nick do bot neste servidor</label>
+                        <input id="bot_profile_nick" placeholder="Nuxora" />
+
+                        <label>Avatar URL do bot neste servidor</label>
+                        <input
+                            id="bot_profile_avatar_url"
+                            placeholder="https://.../avatar.png"
+                        />
+
+                        <label>Banner URL do bot neste servidor</label>
+                        <input
+                            id="bot_profile_banner_url"
+                            placeholder="https://.../banner.png"
+                        />
+
+                        <label>Bio / Sobre mim</label>
+                        <textarea
+                            id="bot_profile_bio"
+                            rows="4"
+                            placeholder="Automação, gerenciamento e SaaS para comunidades."
+                        ></textarea>
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnApplyBotProfile"
+                        >
+                            <i class="fas fa-robot"></i> Aplicar perfil do bot
+                        </button>
+
+                        <hr />
+                        <hr />
+
+                        <h3>Mensagens da Allowlist</h3>
+                        <p class="muted">
+                            Personalize as mensagens enviadas ao aprovar,
+                            reprovar ou chamar para entrevista.
+                        </p>
+
+                        <h3>Aprovado</h3>
+
+                        <label>Título aprovado</label>
+                        <input id="allowlist_approved_title" />
+
+                        <label>Descrição aprovado</label>
+                        <textarea
+                            id="allowlist_approved_description"
+                            rows="4"
+                        ></textarea>
+
+                        <label>Cor aprovado</label>
+                        <input
+                            id="allowlist_approved_color"
+                            placeholder="#2ecc71"
+                        />
+
+                        <label>Rodapé aprovado</label>
+                        <input id="allowlist_approved_footer" />
+
+                        <h3>Reprovado</h3>
+
+                        <label>Título reprovado</label>
+                        <input id="allowlist_rejected_title" />
+
+                        <label>Descrição reprovado</label>
+                        <textarea
+                            id="allowlist_rejected_description"
+                            rows="4"
+                        ></textarea>
+
+                        <label>Cor reprovado</label>
+                        <input
+                            id="allowlist_rejected_color"
+                            placeholder="#e74c3c"
+                        />
+
+                        <label>Rodapé reprovado</label>
+                        <input id="allowlist_rejected_footer" />
+
+                        <h3>Entrevista</h3>
+
+                        <label>Título entrevista</label>
+                        <input id="allowlist_interview_title" />
+
+                        <label>Descrição entrevista</label>
+                        <textarea
+                            id="allowlist_interview_description"
+                            rows="4"
+                        ></textarea>
+
+                        <label>Cor entrevista</label>
+                        <input
+                            id="allowlist_interview_color"
+                            placeholder="#5865F2"
+                        />
+
+                        <label>Rodapé entrevista</label>
+                        <input id="allowlist_interview_footer" />
+
+                        <h3>Embed de Entrada e Saída</h3>
+
+                        <label>Canal de entrada ID</label>
+                        <input id="member_join_channel_id" />
+
+                        <label>Título entrada</label>
+                        <input id="member_join_title" />
+
+                        <label>Descrição entrada</label>
+                        <textarea
                             id="member_join_description"
                             rows="5"
                         ></textarea>
-                        <label>Footer</label><input id="member_join_footer" />
-                        <label>Cor HEX</label><input id="member_join_color" />
-                        <label>Imagem URL</label
-                        ><input id="member_join_image_url" />
 
-                        <h4>🚪 Saída de membros</h4>
-                        <label>Canal de saída ID</label
-                        ><input id="member_leave_channel_id" />
-                        <label>Título da embed</label
-                        ><input id="member_leave_title" />
-                        <label>Descrição</label
-                        ><textarea
+                        <label>Footer entrada</label>
+                        <input id="member_join_footer" />
+
+                        <label>Cor entrada</label>
+                        <input id="member_join_color" />
+
+                        <label>Imagem entrada URL</label>
+                        <input id="member_join_image_url" />
+
+                        <label>Canal de saída ID</label>
+                        <input id="member_leave_channel_id" />
+
+                        <label>Título saída</label>
+                        <input id="member_leave_title" />
+
+                        <label>Descrição saída</label>
+                        <textarea
                             id="member_leave_description"
                             rows="5"
                         ></textarea>
-                        <label>Footer</label><input id="member_leave_footer" />
-                        <label>Cor HEX</label><input id="member_leave_color" />
-                        <label>Imagem URL</label
-                        ><input id="member_leave_image_url" />
 
-                        <p>
-                            <small
-                                >Variáveis: {user}, {username}, {display_name},
-                                {id}, {server}, {member_count}</small
-                            >
-                        </p>
-                        <button onclick="saveSettings()">
+                        <label>Footer saída</label>
+                        <input id="member_leave_footer" />
+
+                        <label>Cor saída</label>
+                        <input id="member_leave_color" />
+
+                        <label>Imagem saída URL</label>
+                        <input id="member_leave_image_url" />
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnSaveSettings"
+                        >
                             <i class="fas fa-cloud-upload-alt"></i> Salvar e
                             sincronizar
                         </button>
@@ -647,514 +704,6 @@
             </main>
         </div>
 
-        <script>
-            // ==================== CÓDIGO ORIGINAL COMPLETAMENTE PRESERVADO ====================
-            const API = "/api";
-            let token = localStorage.getItem("nf_token");
-            let allApplications = [];
-            let currentApplicationFilter = "pending";
-
-            function authHeaders() {
-                return {
-                    Authorization: "Bearer " + token,
-                    "Content-Type": "application/json",
-                };
-            }
-            function showApp() {
-                loginSection().classList.add("hidden");
-                app.classList.remove("hidden");
-                status.innerText = "online";
-            }
-            function showLogin() {
-                loginSection().classList.remove("hidden");
-                app.classList.add("hidden");
-                status.innerText = "offline";
-            }
-            function loginSection() {
-                return document.getElementById("login");
-            }
-
-            async function login() {
-                const res = await fetch(API + "/auth/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username: username.value,
-                        password: password.value,
-                    }),
-                });
-                if (!res.ok) {
-                    alert("Login inválido");
-                    return;
-                }
-                const data = await res.json();
-                token = data.token;
-                localStorage.setItem("nf_token", token);
-                showApp();
-                await loadDashboard();
-            }
-
-            // Função showTab mantida, mas agora também atualiza sidebar e título
-            function showTab(name) {
-                [
-                    "dashboard",
-                    "applications",
-                    "suggestions",
-                    "tickets",
-                    "settings",
-                ].forEach((t) =>
-                    document
-                        .getElementById("tab-" + t)
-                        .classList.toggle("hidden", t !== name),
-                );
-                // Atualizar sidebar ativa
-                document.querySelectorAll(".nav-btn").forEach((btn) => {
-                    if (btn.getAttribute("data-tab") === name)
-                        btn.classList.add("active");
-                    else btn.classList.remove("active");
-                });
-                // Atualizar título do top-bar
-                const titles = {
-                    dashboard: "Dashboard",
-                    applications: "Allowlist",
-                    suggestions: "Sugestões",
-                    tickets: "Tickets",
-                    settings: "Configurações",
-                };
-                const pageLabel = document.getElementById("currentPageLabel");
-                if (pageLabel) pageLabel.innerText = titles[name] || "Painel";
-            }
-
-            // Sincronizar sidebar com showTab
-            function bindSidebar() {
-                document.querySelectorAll(".nav-btn").forEach((btn) => {
-                    btn.addEventListener("click", () => {
-                        const tab = btn.getAttribute("data-tab");
-                        showTab(tab);
-                    });
-                });
-            }
-
-            async function loadDashboard() {
-                const res = await fetch(API + "/dashboard", {
-                    headers: authHeaders(),
-                });
-                if (!res.ok) {
-                    showLogin();
-                    return;
-                }
-                const data = await res.json();
-                showApp();
-                const s = data.stats || {};
-                document.getElementById("stat-apps").innerText =
-                    s.applications || 0;
-                document.getElementById("stat-pending").innerText =
-                    s.pending || 0;
-                document.getElementById("stat-approved").innerText =
-                    s.approved || 0;
-                document.getElementById("stat-rejected").innerText =
-                    s.rejected || 0;
-                document.getElementById("stat-interview").innerText =
-                    s.interview || 0;
-                allApplications = data.applications || [];
-                renderApplications();
-                renderSuggestions(data.suggestions || []);
-                fillSettings(data.settings || {});
-                bindSidebar();
-                // ativar primeira aba após carregar
-                showTab("dashboard");
-            }
-
-            function setApplicationFilter(status) {
-                currentApplicationFilter = status;
-                ["all", "pending", "approved", "rejected", "interview"].forEach(
-                    (s) => {
-                        const b = document.getElementById("filter-" + s);
-                        if (b) b.classList.toggle("active", s === status);
-                    },
-                );
-                renderApplications();
-            }
-
-            function renderApplications() {
-                let items =
-                    currentApplicationFilter === "all"
-                        ? allApplications
-                        : allApplications.filter(
-                              (a) => a.status === currentApplicationFilter,
-                          );
-                let html = `<table><thead><tr><th>ID</th><th>Usuário</th><th>Status</th><th>Respostas</th><th>Ações</th></tr></thead><tbody>`;
-                for (const a of items) {
-                    let answers = "";
-                    try {
-                        answers = JSON.parse(a.answers || "[]")
-                            .map(
-                                (x) =>
-                                    `<b>${esc(x.question)}</b><br>${esc(x.answer)}`,
-                            )
-                            .join("<hr>");
-                    } catch (e) {
-                        answers = esc(a.answers || "");
-                    }
-                    html += `<tr>
-                        <td>${a.id}</td>
-                        <td>${esc(a.discord_name)}<br><small>${a.discord_id}</small></td>
-                        <td><b>${a.status}</b></td>
-                        <td>${answers}</td>
-                        <td><button class="green" onclick="setAppStatus(${a.id},'approved')">Aprovar</button><button class="blue" onclick="setAppStatus(${a.id},'interview')">Entrevista</button><button onclick="setAppStatus(${a.id},'rejected')">Reprovar</button></td>
-                    </tr>`;
-                }
-                html += `</tbody></table>`;
-                document.getElementById("applications-table").innerHTML = html;
-            }
-
-            function renderSuggestions(items) {
-                let html = `<table><thead><tr><th>ID</th><th>Usuário</th><th>Status</th><th>Conteúdo</th><th>Ações</th></tr></thead><tbody>`;
-                for (const s of items) {
-                    html += `<tr>
-                        <td>${s.id}</td>
-                        <td>${esc(s.discord_name)}</td>
-                        <td>${esc(s.status)}</td>
-                        <td>${esc(s.content)}</td>
-                        <td><button class="green" onclick="setSuggestionStatus(${s.id},'accepted')">Aceita</button><button class="blue" onclick="setSuggestionStatus(${s.id},'implemented')">Implementada</button><button onclick="setSuggestionStatus(${s.id},'rejected')">Negada</button></td>
-                    </tr>`;
-                }
-                html += `</tbody></table>`;
-                document.getElementById("suggestions-table").innerHTML = html;
-            }
-
-            function fillSettings(s) {
-                setValue("allowlist_title", s.allowlist_title || "");
-                setValue(
-                    "allowlist_description",
-                    s.allowlist_description || "",
-                );
-                setValue("allowlist_footer", s.allowlist_footer || "");
-                setValue("allowlist_image_url", s.allowlist_image_url || "");
-                setValue(
-                    "allowlist_thumbnail_url",
-                    s.allowlist_thumbnail_url || "",
-                );
-                setValue(
-                    "allowlist_category_id",
-                    s.allowlist_category_id || "",
-                );
-                setValue("staff_channel_id", s.staff_channel_id || "");
-                setValue(
-                    "suggestion_channel_id",
-                    s.suggestion_channel_id || "",
-                );
-                setValue("approved_role_id", s.approved_role_id || "");
-                setValue(
-                    "remove_role_on_approved_id",
-                    s.remove_role_on_approved_id || "",
-                );
-                setValue("interview_role_id", s.interview_role_id || "");
-                setValue("approved_channel_id", s.approved_channel_id || "");
-                setValue("rejected_channel_id", s.rejected_channel_id || "");
-                setValue("autorole_role_id", s.autorole_role_id || "");
-                setValue("bot_color", s.bot_color || "#8B0000");
-
-                try {
-                    setValue(
-                        "allowlist_questions",
-                        JSON.parse(s.allowlist_questions || "[]").join("\n"),
-                    );
-                } catch (e) {
-                    setValue("allowlist_questions", "");
-                }
-
-                setValue(
-                    "ticket_panel_title",
-                    s.ticket_panel_title || "🎫 Central de Atendimento",
-                );
-                setValue(
-                    "ticket_panel_description",
-                    s.ticket_panel_description ||
-                        "Selecione abaixo o tipo de atendimento que você precisa.",
-                );
-                setValue("ticket_panel_footer", s.ticket_panel_footer || "");
-                setValue(
-                    "ticket_panel_image_url",
-                    s.ticket_panel_image_url || "",
-                );
-                setValue(
-                    "ticket_panel_thumbnail_url",
-                    s.ticket_panel_thumbnail_url || "",
-                );
-                setValue(
-                    "ticket_panel_color",
-                    s.ticket_panel_color || "#8B0000",
-                );
-                setValue("ticket_category_id", s.ticket_category_id || "");
-                setValue("ticket_staff_role_id", s.ticket_staff_role_id || "");
-                setValue("logs_channel_id", s.logs_channel_id || "");
-                setValue(
-                    "member_join_channel_id",
-                    s.member_join_channel_id || "",
-                );
-                setValue(
-                    "member_join_title",
-                    s.member_join_title || "👋 Bem-vindo(a) ao NightFall",
-                );
-                setValue(
-                    "member_join_description",
-                    s.member_join_description ||
-                        "As sombras observam sua chegada.\n\n{user}, acaba de atravessar os portões de {server} e agora faz parte de um mundo marcado por sangue, guerra e segredos antigos.\n\nQue sua história seja lembrada... ou enterrada nas trevas do Eclipse Eterno.",
-                );
-                setValue(
-                    "member_join_footer",
-                    s.member_join_footer || "NightFall • Boas-vindas",
-                );
-                setValue("member_join_color", s.member_join_color || "#8B0000");
-                setValue(
-                    "member_join_image_url",
-                    s.member_join_image_url || "",
-                );
-                setValue(
-                    "member_leave_channel_id",
-                    s.member_leave_channel_id || "",
-                );
-                setValue(
-                    "member_leave_title",
-                    s.member_leave_title || "📤 Membro saiu",
-                );
-                setValue(
-                    "member_leave_description",
-                    s.member_leave_description ||
-                        "**{username}** deixou {server}.\n\nAs sombras registram sua partida.",
-                );
-                setValue(
-                    "member_leave_footer",
-                    s.member_leave_footer || "NightFall • Saídas",
-                );
-                setValue(
-                    "member_leave_color",
-                    s.member_leave_color || "#8B0000",
-                );
-                setValue(
-                    "member_leave_image_url",
-                    s.member_leave_image_url || "",
-                );
-
-                let types = [];
-                try {
-                    types = JSON.parse(s.ticket_types || "[]");
-                } catch (e) {
-                    types = [];
-                }
-                if (types.length === 0) {
-                    types = [
-                        {
-                            id: "suporte",
-                            label: "Suporte",
-                            emoji: "🛠️",
-                            description: "Abra um ticket para suporte geral.",
-                            style: "gray",
-                            category_id: "",
-                            allowed_role_ids: [],
-                        },
-                        {
-                            id: "denuncia",
-                            label: "Denúncia",
-                            emoji: "🚨",
-                            description: "Abra um ticket para denúncias.",
-                            style: "red",
-                            category_id: "",
-                            allowed_role_ids: [],
-                        },
-                        {
-                            id: "bug",
-                            label: "Bug",
-                            emoji: "🐞",
-                            description: "Reporte bugs ou problemas técnicos.",
-                            style: "blurple",
-                            category_id: "",
-                            allowed_role_ids: [],
-                        },
-                    ];
-                }
-                renderTicketTypes(types);
-            }
-
-            function renderTicketTypes(types) {
-                const box = document.getElementById("ticket-types");
-                box.innerHTML = "";
-                types.forEach((t, i) => {
-                    const div = document.createElement("div");
-                    div.className = "ticket-type";
-                    const allowed = (t.allowed_role_ids || []).join(",");
-                    div.innerHTML = `
-                <label>ID</label><input class="tt-id" value="${escAttr(t.id || "")}">
-                <label>Label do botão</label><input class="tt-label" value="${escAttr(t.label || "")}">
-                <label>Emoji do botão</label><input class="tt-emoji" value="${escAttr(t.emoji || "")}">
-                <label>Descrição interna do tipo</label><textarea class="tt-description">${esc(t.description || "")}</textarea>
-                <label>Estilo do botão: gray, red, green, blurple</label><input class="tt-style" value="${escAttr(t.style || "gray")}">
-                <label>Categoria específica ID desse tipo de ticket</label><input class="tt-category-id" value="${escAttr(t.category_id || "")}">
-                <label>Cargos com acesso a esse tipo, separados por vírgula</label><input class="tt-allowed-roles" value="${escAttr(allowed)}">
-                <button class="secondary" onclick="this.parentElement.remove()">Remover</button>
-            `;
-                    box.appendChild(div);
-                });
-            }
-
-            function getTicketTypesFromForm() {
-                return Array.from(document.querySelectorAll(".ticket-type"))
-                    .map((div) => ({
-                        id: div.querySelector(".tt-id").value.trim(),
-                        label: div.querySelector(".tt-label").value.trim(),
-                        emoji: div.querySelector(".tt-emoji").value.trim(),
-                        description: div
-                            .querySelector(".tt-description")
-                            .value.trim(),
-                        style:
-                            div.querySelector(".tt-style").value.trim() ||
-                            "gray",
-                        category_id: div
-                            .querySelector(".tt-category-id")
-                            .value.trim(),
-                        allowed_role_ids: div
-                            .querySelector(".tt-allowed-roles")
-                            .value.split(",")
-                            .map((x) => x.trim())
-                            .filter(Boolean),
-                    }))
-                    .filter((t) => t.id && t.label);
-            }
-
-            function addTicketType() {
-                const types = getTicketTypesFromForm();
-                types.push({
-                    id: "novo",
-                    label: "Novo",
-                    emoji: "🎫",
-                    description: "Descrição do ticket.",
-                    style: "gray",
-                    category_id: "",
-                    allowed_role_ids: [],
-                });
-                renderTicketTypes(types);
-            }
-
-            function setValue(id, v) {
-                const el = document.getElementById(id);
-                if (el) el.value = v;
-            }
-
-            async function setAppStatus(id, status) {
-                const res = await fetch(API + `/applications/${id}/status`, {
-                    method: "PATCH",
-                    headers: authHeaders(),
-                    body: JSON.stringify({ status }),
-                });
-                if (!res.ok) {
-                    alert("Erro ao alterar status");
-                    return;
-                }
-                await loadDashboard();
-                alert(
-                    "Status atualizado. O bot deve sincronizar em até 3 segundos.",
-                );
-            }
-            async function setSuggestionStatus(id, status) {
-                const res = await fetch(API + `/suggestions/${id}/status`, {
-                    method: "PATCH",
-                    headers: authHeaders(),
-                    body: JSON.stringify({ status }),
-                });
-                if (!res.ok) {
-                    alert("Erro ao alterar sugestão");
-                    return;
-                }
-                await loadDashboard();
-            }
-            async function saveSettings() {
-                const questions = allowlist_questions.value
-                    .split(/\r?\n/)
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                const payload = {
-                    settings: {
-                        allowlist_title: allowlist_title.value,
-                        allowlist_description: allowlist_description.value,
-                        allowlist_footer: allowlist_footer.value,
-                        allowlist_image_url: allowlist_image_url.value,
-                        allowlist_thumbnail_url: allowlist_thumbnail_url.value,
-                        allowlist_category_id: allowlist_category_id.value,
-                        allowlist_questions: questions,
-                        staff_channel_id: staff_channel_id.value,
-                        suggestion_channel_id: suggestion_channel_id.value,
-                        approved_role_id: approved_role_id.value,
-                        remove_role_on_approved_id:
-                            remove_role_on_approved_id.value,
-                        interview_role_id: interview_role_id.value,
-                        approved_channel_id: approved_channel_id.value,
-                        rejected_channel_id: rejected_channel_id.value,
-                        autorole_role_id: autorole_role_id.value,
-                        bot_color: bot_color.value,
-                        ticket_panel_title: ticket_panel_title.value,
-                        ticket_panel_description:
-                            ticket_panel_description.value,
-                        ticket_panel_footer: ticket_panel_footer.value,
-                        ticket_panel_image_url: ticket_panel_image_url.value,
-                        ticket_panel_thumbnail_url:
-                            ticket_panel_thumbnail_url.value,
-                        ticket_panel_color: ticket_panel_color.value,
-                        ticket_category_id: ticket_category_id.value,
-                        ticket_staff_role_id: ticket_staff_role_id.value,
-                        logs_channel_id: logs_channel_id.value,
-                        ticket_types: getTicketTypesFromForm(),
-                        member_join_channel_id: member_join_channel_id.value,
-                        member_join_title: member_join_title.value,
-                        member_join_description: member_join_description.value,
-                        member_join_footer: member_join_footer.value,
-                        member_join_color: member_join_color.value,
-                        member_join_image_url: member_join_image_url.value,
-                        member_leave_channel_id: member_leave_channel_id.value,
-                        member_leave_title: member_leave_title.value,
-                        member_leave_description:
-                            member_leave_description.value,
-                        member_leave_footer: member_leave_footer.value,
-                        member_leave_color: member_leave_color.value,
-                        member_leave_image_url: member_leave_image_url.value,
-                    },
-                };
-                const res = await fetch(API + "/settings", {
-                    method: "PUT",
-                    headers: authHeaders(),
-                    body: JSON.stringify(payload),
-                });
-                if (!res.ok) {
-                    alert("Erro ao salvar configurações");
-                    return;
-                }
-                await loadDashboard();
-                alert("Configurações salvas.");
-            }
-            function esc(str) {
-                return String(str || "")
-                    .replaceAll("&", "&amp;")
-                    .replaceAll("<", "&lt;")
-                    .replaceAll(">", "&gt;")
-                    .replaceAll('"', "&quot;")
-                    .replaceAll("'", "&#039;");
-            }
-            function escAttr(str) {
-                return esc(str).replaceAll("\\n", " ");
-            }
-            if (token) {
-                loadDashboard();
-            } else {
-                showLogin();
-            }
-            // Expor funções globais para os botões
-            window.setApplicationFilter = setApplicationFilter;
-            window.setAppStatus = setAppStatus;
-            window.setSuggestionStatus = setSuggestionStatus;
-            window.saveSettings = saveSettings;
-            window.addTicketType = addTicketType;
-            window.login = login;
-            window.showTab = showTab;
-        </script>
+        <script src="app.js"></script>
     </body>
 </html>

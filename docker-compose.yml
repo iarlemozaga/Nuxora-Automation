@@ -11,6 +11,8 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
     networks:
       - nuxora
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
       test:
         [
@@ -46,6 +48,9 @@ services:
         condition: service_healthy
     networks:
       - nuxora
+      - npm-net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
     cpus: 0.50
     mem_limit: 384m
@@ -74,6 +79,8 @@ services:
         condition: service_started
     networks:
       - nuxora
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
     cpus: 0.75
     mem_limit: 512m
@@ -99,6 +106,9 @@ services:
       - nuxora-api
     networks:
       - nuxora
+      - npm-net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
     cpus: 0.25
     mem_limit: 128m
@@ -117,3 +127,5 @@ services:
 networks:
   nuxora:
     name: nuxora
+  npm-net:
+    external: true

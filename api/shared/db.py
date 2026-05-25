@@ -1,169 +1,310 @@
-import os
+import hashlib
 import json
-import psycopg
-from psycopg.rows import dict_row
-from contextlib import contextmanager
+import os
+import secrets
 from datetime import datetime
 
+import psycopg
+from psycopg.rows import dict_row
+
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://nightfall:nightfall_password@nightfall-postgres:5432/nightfall"
+    "DATABASE_URL", "postgresql://nuxora:nuxora_password@nuxora-postgres:5432/nuxora"
 )
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS applications (
-    id SERIAL PRIMARY KEY,
-    discord_id TEXT NOT NULL,
-    discord_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    answers TEXT NOT NULL,
-    staff_note TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS suggestions (
-    id SERIAL PRIMARY KEY,
-    discord_id TEXT NOT NULL,
-    discord_name TEXT NOT NULL,
-    content TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'analysis',
-    message_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS logs (
-    id SERIAL PRIMARY KEY,
-    event TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
-CREATE INDEX IF NOT EXISTS idx_applications_discord_status ON applications(discord_id, status);
-CREATE INDEX IF NOT EXISTS idx_suggestions_status ON suggestions(status);
-CREATE INDEX IF NOT EXISTS idx_logs_id_event ON logs(id, event);
-"""
-
-DEFAULT_SETTINGS = {
-    "allowlist_title": "Registro de Cidadania",
-    "allowlist_description": "Clique no botão para iniciar sua allowlist.",
-    "allowlist_questions": json.dumps([
-        "Nome do Personagem",
-        "Idade",
-        "Conte sua lore",
-        "Experiência com RP",
-        "Horários disponíveis"
-    ], ensure_ascii=False),
-    "bot_color": os.getenv("BOT_COLOR", "#8B0000"),
-    "staff_channel_id": os.getenv("STAFF_CHANNEL_ID", "0"),
-    "suggestion_channel_id": os.getenv("SUGGESTION_CHANNEL_ID", "0"),
-    "logs_channel_id": os.getenv("LOGS_CHANNEL_ID", "0"),
-    "approved_role_id": os.getenv("APPROVED_ROLE_ID", "0"),
-    "interview_role_id": os.getenv("INTERVIEW_ROLE_ID", "0"),
-    "autorole_role_id": os.getenv("AUTOROLE_ROLE_ID", "0"),
-    "allowlist_category_id": "0",
-    "ticket_category_id": "0",
-    "ticket_staff_role_id": "0",
-    "ticket_panel_title": "🎫 Central de Atendimento",
-    "ticket_panel_description": "Selecione abaixo o tipo de atendimento que você precisa.",
-    "ticket_panel_color": "#8B0000",
-    "ticket_types": "[]",
-    "fivem_enabled": "false",
-    "minecraft_enabled": "false",
-    "conan_enabled": "false",
-    "hytale_enabled": "false"
-}
+API_SECRET = os.getenv("API_SECRET", "dev-secret")
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 
-@contextmanager
-def connect():
-    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
-        yield conn
+SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        email TEXT,
+        role TEXT NOT NULL DEFAULT 'customer',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sessions (
+        id SERIAL PRIMARY KEY,
+        token TEXT UNIQUE NOT NULL,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS customer_guilds (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        guild_id TEXT UNIQUE NOT NULL,
+        guild_name TEXT NOT NULL,
+        plan TEXT NOT NULL DEFAULT 'manual',
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS guild_settings (
+        guild_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (guild_id, key)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS applications (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL DEFAULT 'global',
+        discord_id TEXT NOT NULL,
+        discord_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        answers TEXT NOT NULL,
+        staff_note TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS suggestions (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL DEFAULT 'global',
+        discord_id TEXT NOT NULL,
+        discord_name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'analysis',
+        message_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS logs (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL DEFAULT 'global',
+        event TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )
+    """,
+    """
+    ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS id SERIAL
+    """,
+    """
+    ALTER TABLE sessions
+    ADD CONSTRAINT sessions_token_unique UNIQUE (token)
+    """,
+    """
+    ALTER TABLE applications
+    ADD COLUMN IF NOT EXISTS guild_id TEXT NOT NULL DEFAULT 'global'
+    """,
+    """
+    ALTER TABLE suggestions
+    ADD COLUMN IF NOT EXISTS guild_id TEXT NOT NULL DEFAULT 'global'
+    """,
+    """
+    ALTER TABLE logs
+    ADD COLUMN IF NOT EXISTS guild_id TEXT NOT NULL DEFAULT 'global'
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_applications_guild_status
+    ON applications(guild_id, status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_suggestions_guild_status
+    ON suggestions(guild_id, status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_logs_guild_id_event
+    ON logs(guild_id, id, event)
+    """,
+]
 
 
 def now():
     return datetime.utcnow().isoformat()
 
 
-def init_db():
-    with connect() as conn:
-        conn.execute(SCHEMA)
-
-        for key, value in DEFAULT_SETTINGS.items():
-            conn.execute(
-                """
-                INSERT INTO settings (key, value)
-                VALUES (%s, %s)
-                ON CONFLICT (key) DO NOTHING
-                """,
-                (key, str(value))
-            )
-
-        conn.commit()
-
-
-def qmark_to_psycopg(query: str) -> str:
+def normalize_query(query: str) -> str:
     return query.replace("?", "%s")
 
 
-def rows(query, params=()):
-    query = qmark_to_psycopg(query)
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+    return f"{salt}:{digest}"
 
-    with connect() as conn:
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        salt, digest = password_hash.split(":", 1)
+        check = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+        return secrets.compare_digest(check, digest)
+    except Exception:
+        return False
+
+
+def init_db():
+    with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+        conn.execute("SELECT pg_advisory_lock(987654321)")
+
+        try:
+            for statement in SCHEMA_STATEMENTS:
+                try:
+                    conn.execute(statement)
+                except Exception as e:
+                    msg = str(e)
+
+                    if (
+                        "already exists" in msg
+                        or "duplicate key value violates unique constraint" in msg
+                        or "multiple primary keys" in msg
+                        or "already a primary key" in msg
+                    ):
+                        print(f"⚠️ Schema já existente ignorado: {msg}", flush=True)
+                        continue
+
+                    print(f"⚠️ Erro no schema: {msg}", flush=True)
+
+        finally:
+            conn.execute("SELECT pg_advisory_unlock(987654321)")
+
+
+def rows(query: str, params=()):
+    query = normalize_query(query)
+
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
         cur = conn.execute(query, params)
         return list(cur.fetchall())
 
 
-def row(query, params=()):
-    data = rows(query, params)
-    return data[0] if data else None
+def row(query: str, params=()):
+    query = normalize_query(query)
+
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+        cur = conn.execute(query, params)
+        return cur.fetchone()
 
 
-def execute(query, params=()):
-    query = qmark_to_psycopg(query)
-    lowered = query.strip().lower()
+def execute(query: str, params=()):
+    query = normalize_query(query).strip()
+    ql = query.lower()
 
-    with connect() as conn:
-        if lowered.startswith("insert"):
-            # A tabela settings não possui coluna id.
-            if "into settings" in lowered:
-                conn.execute(query, params)
-                conn.commit()
-                return None
-
+    with psycopg.connect(DATABASE_URL, autocommit=True, row_factory=dict_row) as conn:
+        # Só tenta RETURNING id em INSERT simples.
+        # Não faz isso em ON CONFLICT porque tabelas como guild_settings não têm id.
+        if (
+            ql.startswith("insert")
+            and "returning" not in ql
+            and "on conflict" not in ql
+        ):
             try:
                 cur = conn.execute(query + " RETURNING id", params)
-                conn.commit()
-                value = cur.fetchone()
-                return value["id"] if value else None
+                data = cur.fetchone()
+                return data["id"] if data and "id" in data else None
             except Exception:
-                conn.rollback()
                 conn.execute(query, params)
-                conn.commit()
                 return None
 
-        conn.execute(query, params)
-        conn.commit()
+        cur = conn.execute(query, params)
+
+        try:
+            data = cur.fetchone()
+            if data and "id" in data:
+                return data["id"]
+        except Exception:
+            pass
+
         return None
 
 
 def get_settings():
-    return {r["key"]: r["value"] for r in rows("SELECT key, value FROM settings")}
+    data = rows("SELECT key, value FROM settings")
+    return {r["key"]: r["value"] for r in data}
 
 
-def set_setting(key, value):
+def set_setting(key: str, value):
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, ensure_ascii=False)
+
     execute(
         """
         INSERT INTO settings (key, value)
         VALUES (?, ?)
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+        ON CONFLICT (key)
+        DO UPDATE SET value = EXCLUDED.value
         """,
-        (key, str(value))
+        (key, str(value)),
+    )
+
+
+def get_guild_settings(guild_id: str):
+    data = rows(
+        "SELECT key, value FROM guild_settings WHERE guild_id=?", (str(guild_id),)
+    )
+    return {r["key"]: r["value"] for r in data}
+
+
+def set_guild_setting(guild_id: str, key: str, value):
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, ensure_ascii=False)
+
+    execute(
+        """
+        INSERT INTO guild_settings (guild_id, key, value)
+        VALUES (?, ?, ?)
+        ON CONFLICT (guild_id, key)
+        DO UPDATE SET value = EXCLUDED.value
+        """,
+        (str(guild_id), key, str(value)),
+    )
+
+
+def create_session(user_id: int):
+    token = secrets.token_urlsafe(48)
+
+    execute(
+        """
+        INSERT INTO sessions (token, user_id, created_at)
+        VALUES (?, ?, ?)
+        """,
+        (token, user_id, now()),
+    )
+
+    return token
+
+
+def get_user_by_token(token: str):
+    return row(
+        """
+        SELECT users.*
+        FROM sessions
+        JOIN users ON users.id = sessions.user_id
+        WHERE sessions.token=?
+        """,
+        (token,),
+    )
+
+
+def log(event: str, payload, guild_id: str = "global"):
+    if not isinstance(payload, str):
+        payload = json.dumps(payload, ensure_ascii=False)
+
+    execute(
+        """
+        INSERT INTO logs (guild_id, event, payload, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (str(guild_id), event, payload, now()),
     )

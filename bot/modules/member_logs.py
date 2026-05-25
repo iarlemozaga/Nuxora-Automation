@@ -2,13 +2,16 @@ import os
 import discord
 from discord.ext import commands
 from discord import app_commands
-
+from shared.guard import is_guild_active
 from shared.db import settings, execute, log
 
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 
 
-async def save_setting(key: str, value: str):
+async def save_setting(guild_id: int, key: str, value: str):
+    from shared.db import set_setting
+    await set_setting(guild_id, key, value)
+    return
     await execute(
         """
         INSERT INTO settings (key, value)
@@ -27,7 +30,7 @@ def parse_color(hex_color: str, default: int):
 
 
 async def get_channel_by_setting(guild: discord.Guild, primary_key: str):
-    cfg = await settings()
+    cfg = await settings(guild.id)
 
     channel_id = int(
         cfg.get(primary_key)
@@ -80,7 +83,7 @@ class MemberLogs(commands.Cog):
         print("✅ MemberLogs cog inicializado", flush=True)
 
     async def build_join_embed(self, member: discord.Member):
-        cfg = await settings()
+        cfg = await settings(member.guild.id)
 
         title = cfg.get("member_join_title", "👋 Bem-vindo(a) ao NightFall")
         description = cfg.get(
@@ -116,7 +119,7 @@ class MemberLogs(commands.Cog):
         return embed
 
     async def build_leave_embed(self, member: discord.Member):
-        cfg = await settings()
+        cfg = await settings(member.guild.id)
 
         title = cfg.get("member_leave_title", "📤 Membro saiu")
         description = cfg.get(
@@ -153,6 +156,9 @@ class MemberLogs(commands.Cog):
         print(f"Membro entrou: {member} / {member.id}", flush=True)
 
         channel = await get_channel_by_setting(member.guild, "member_join_channel_id")
+        if not await is_guild_active(member.guild.id):
+            print(f"🔒 Member log ignorado: servidor bloqueado {member.guild.id}", flush=True)
+            return
 
         if not channel:
             print("Canal de log de entrada não configurado.", flush=True)
@@ -173,6 +179,10 @@ class MemberLogs(commands.Cog):
 
         channel = await get_channel_by_setting(member.guild, "member_leave_channel_id")
 
+        if not await is_guild_active(member.guild.id):
+            print(f"🔒 Member log ignorado: servidor bloqueado {member.guild.id}", flush=True)
+            return
+
         if not channel:
             print("Canal de log de saída não configurado.", flush=True)
             return
@@ -185,7 +195,6 @@ class MemberLogs(commands.Cog):
             "member_name": str(member)
         })
 
-    @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(name="memberlog_config", description="Configura canais de entrada e saída")
     @app_commands.default_permissions(manage_guild=True)
     async def memberlog_config(
@@ -199,23 +208,23 @@ class MemberLogs(commands.Cog):
         changes = []
 
         if desativar_entrada:
-            await save_setting("member_join_channel_id", "0")
+            await save_setting(interaction.guild.id, "member_join_channel_id", "0")
             changes.append("entrada desativada")
 
         if desativar_saida:
-            await save_setting("member_leave_channel_id", "0")
+            await save_setting(interaction.guild.id, "member_leave_channel_id", "0")
             changes.append("saída desativada")
 
         if canal_entrada:
-            await save_setting("member_join_channel_id", str(canal_entrada.id))
+            await save_setting(interaction.guild.id, "member_join_channel_id", str(canal_entrada.id))
             changes.append(f"entrada: {canal_entrada.mention}")
 
         if canal_saida:
-            await save_setting("member_leave_channel_id", str(canal_saida.id))
+            await save_setting(interaction.guild.id, "member_leave_channel_id", str(canal_saida.id))
             changes.append(f"saída: {canal_saida.mention}")
 
         if not changes:
-            cfg = await settings()
+            cfg = await settings(interaction.guild.id)
             entrada = cfg.get("member_join_channel_id") or cfg.get("logs_channel_id") or "0"
             saida = cfg.get("member_leave_channel_id") or cfg.get("logs_channel_id") or "0"
 
@@ -230,7 +239,6 @@ class MemberLogs(commands.Cog):
             ephemeral=True
         )
 
-    @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(name="memberlog_embed", description="Configura embed de entrada ou saída")
     @app_commands.default_permissions(manage_guild=True)
     async def memberlog_embed(
@@ -253,23 +261,23 @@ class MemberLogs(commands.Cog):
         changes = []
 
         if titulo is not None:
-            await save_setting(f"{prefix}_title", titulo)
+            await save_setting(interaction.guild.id, f"{prefix}_title", titulo)
             changes.append("título")
 
         if descricao is not None:
-            await save_setting(f"{prefix}_description", descricao)
+            await save_setting(interaction.guild.id, f"{prefix}_description", descricao)
             changes.append("descrição")
 
         if footer is not None:
-            await save_setting(f"{prefix}_footer", footer)
+            await save_setting(interaction.guild.id, f"{prefix}_footer", footer)
             changes.append("footer")
 
         if cor_hex is not None:
-            await save_setting(f"{prefix}_color", cor_hex)
+            await save_setting(interaction.guild.id, f"{prefix}_color", cor_hex)
             changes.append("cor")
 
         if imagem_url is not None:
-            await save_setting(f"{prefix}_image_url", imagem_url)
+            await save_setting(interaction.guild.id, f"{prefix}_image_url", imagem_url)
             changes.append("imagem")
 
         await interaction.response.send_message(

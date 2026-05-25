@@ -111,7 +111,6 @@ class Embeds(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(name="embed", description="Envia uma embed personalizada")
     @app_commands.default_permissions(manage_messages=True)
     async def embed(self, interaction: discord.Interaction):

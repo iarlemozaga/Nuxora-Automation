@@ -2,13 +2,17 @@ import os
 import discord
 from discord.ext import commands
 from discord import app_commands
+from shared.guard import is_guild_active
 
 from shared.db import settings, execute, log
 
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 
 
-async def save_setting(key: str, value: str):
+async def save_setting(guild_id: int, key: str, value: str):
+    from shared.db import set_setting
+    await set_setting(guild_id, key, value)
+    return
     await execute(
         '''
         INSERT INTO settings (key, value)
@@ -28,8 +32,10 @@ class AutoRole(commands.Cog):
     async def on_member_join(self, member: discord.Member):
         print("=== AUTOROLE: NOVO MEMBRO ===")
         print(f"Membro: {member} / {member.id}")
-
-        cfg = await settings()
+        if not await is_guild_active(member.guild.id):
+            print(f"🔒 Autorole ignorado: servidor bloqueado {member.guild.id}", flush=True)
+            return
+        cfg = await settings(member.guild.id)
 
         role_id = int(
             cfg.get("autorole_role_id")
@@ -71,7 +77,6 @@ class AutoRole(commands.Cog):
         except Exception as e:
             print(f"❌ Erro ao aplicar autorole: {e}")
 
-    @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(
         name="autorole_config",
         description="Configura o cargo automático para novos membros"
@@ -84,7 +89,7 @@ class AutoRole(commands.Cog):
         desativar: bool = False
     ):
         if desativar:
-            await save_setting("autorole_role_id", "0")
+            await save_setting(interaction.guild.id, "autorole_role_id", "0")
 
             await interaction.response.send_message(
                 "✅ Autorole desativado.",
@@ -93,7 +98,7 @@ class AutoRole(commands.Cog):
             return
 
         if cargo is None:
-            cfg = await settings()
+            cfg = await settings(interaction.guild.id)
             current = cfg.get("autorole_role_id", "0")
 
             await interaction.response.send_message(
@@ -102,7 +107,7 @@ class AutoRole(commands.Cog):
             )
             return
 
-        await save_setting("autorole_role_id", str(cargo.id))
+        await save_setting(interaction.guild.id, "autorole_role_id", str(cargo.id))
 
         await interaction.response.send_message(
             f"✅ Autorole configurado para {cargo.mention}.",
