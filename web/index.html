@@ -130,6 +130,7 @@
                         class="primary"
                         type="button"
                         style="width: 100%; justify-content: center"
+                        onclick="doLogin()"
                     >
                         Entrar
                     </button>
@@ -201,13 +202,16 @@
                         />
 
                         <label>Título</label>
-                        <input id="embed_title" placeholder="Título do embed" />
+                        <input
+                            id="embed_title"
+                            placeholder="Título do embed (opcional)"
+                        />
 
                         <label>Descrição</label>
                         <textarea
                             id="embed_description"
                             rows="8"
-                            placeholder="Texto do embed"
+                            placeholder="Texto do embed. Se passar do limite do Discord, será dividido automaticamente em mais partes."
                         ></textarea>
 
                         <label>Cor HEX</label>
@@ -218,6 +222,21 @@
                             id="embed_footer"
                             placeholder="Rodapé opcional"
                         />
+                        <label
+                            style="
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                margin-top: 8px;
+                            "
+                        >
+                            <input
+                                id="embed_footer_fixed"
+                                type="checkbox"
+                                style="width: auto"
+                            />
+                            Fixar este rodapé para este servidor
+                        </label>
 
                         <label>Imagem URL</label>
                         <input id="embed_image_url" placeholder="https://..." />
@@ -395,6 +414,39 @@ Assista: {url}</textarea
 
                         <hr />
 
+                        <h3>Atividade global do bot</h3>
+                        <p class="muted">
+                            Esta mensagem aparece como status/atividade do bot
+                            em todos os servidores. Por limitação do Discord,
+                            não existe atividade diferente por servidor usando o
+                            mesmo bot.
+                        </p>
+
+                        <label>Tipo de atividade</label>
+                        <select id="admin_bot_activity_type">
+                            <option value="playing">Jogando</option>
+                            <option value="watching">Assistindo</option>
+                            <option value="listening">Ouvindo</option>
+                            <option value="competing">Competindo</option>
+                        </select>
+
+                        <label>Texto da atividade</label>
+                        <input
+                            id="admin_bot_activity_text"
+                            placeholder="Ex: Nuxora Automation"
+                        />
+
+                        <button
+                            class="primary"
+                            type="button"
+                            id="btnAdminApplyBotActivity"
+                        >
+                            <i class="fas fa-gamepad"></i> Aplicar atividade
+                            global
+                        </button>
+
+                        <hr />
+
                         <h3>Clientes</h3>
                         <div id="admin-users-list"></div>
 
@@ -518,6 +570,29 @@ Assista: {url}</textarea
                         <label>Cargo Aprovado ID</label>
                         <input id="approved_role_id" />
 
+                        <hr />
+
+                        <h3>Cargos por resposta da Allowlist</h3>
+                        <p class="muted">
+                            Crie regras para adicionar cargos automaticamente
+                            quando uma resposta específica for enviada e a
+                            allowlist for aprovada. Exemplo: pergunta "Qual é
+                            sua raça?", resposta "Lobisomem" e cargo do
+                            Lobisomem.
+                        </p>
+
+                        <div id="allowlist-answer-role-mappings"></div>
+
+                        <button
+                            type="button"
+                            id="btnAddAnswerRoleMapping"
+                            onclick="addAnswerRoleMapping()"
+                        >
+                            <i class="fas fa-plus"></i> Adicionar regra
+                        </button>
+
+                        <hr />
+
                         <label
                             >Cargos para remover ao aprovar, separados por
                             vírgula</label
@@ -564,10 +639,16 @@ Assista: {url}</textarea
                         />
 
                         <label>Bio / Sobre mim</label>
+                        <p class="muted">
+                            O Discord não permite alterar a bio do bot por
+                            servidor. A atividade/status do bot agora fica
+                            disponível apenas para admin no Painel Admin.
+                        </p>
                         <textarea
                             id="bot_profile_bio"
-                            rows="4"
-                            placeholder="Automação, gerenciamento e SaaS para comunidades."
+                            rows="2"
+                            disabled
+                            placeholder="Não suportado por servidor no Discord."
                         ></textarea>
 
                         <button
@@ -695,6 +776,7 @@ Assista: {url}</textarea
                             class="primary"
                             type="button"
                             id="btnSaveSettings"
+                            onclick="saveSettings()"
                         >
                             <i class="fas fa-cloud-upload-alt"></i> Salvar e
                             sincronizar
@@ -704,6 +786,6 @@ Assista: {url}</textarea
             </main>
         </div>
 
-        <script src="app.js"></script>
+        <script src="app.js?v=embed-footer-login-hotfix-20260603"></script>
     </body>
 </html>

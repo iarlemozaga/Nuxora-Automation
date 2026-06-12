@@ -13,8 +13,8 @@ GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 
 EMBED_COLOR = 0x8B0000
 
-FIXED_FOOTER_TEXT = "NightFall Roleplay • Sistema oficial"
-FIXED_FOOTER_ICON = ""  # opcional: coloque uma URL de imagem aqui
+FIXED_FOOTER_TEXT = os.getenv("EMBED_FOOTER_TEXT", "").strip()
+FIXED_FOOTER_ICON = os.getenv("EMBED_FOOTER_ICON", "").strip()
 
 
 class EmbedModal(Modal):
@@ -23,7 +23,7 @@ class EmbedModal(Modal):
 
         self.channel = channel
 
-        self.title_input = TextInput(label="Título", max_length=256, required=True)
+        self.title_input = TextInput(label="Título", max_length=256, required=False)
 
         self.desc_input = TextInput(
             label="Mensagem",
@@ -61,7 +61,7 @@ class EmbedModal(Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title=self.title_input.value,
+            title=(self.title_input.value or "").strip(),
             description=self.desc_input.value,
             color=EMBED_COLOR,
         )
@@ -80,10 +80,11 @@ class EmbedModal(Modal):
         if thumbnail_url:
             embed.set_thumbnail(url=thumbnail_url)
 
-        if FIXED_FOOTER_ICON:
-            embed.set_footer(text=FIXED_FOOTER_TEXT, icon_url=FIXED_FOOTER_ICON)
-        else:
-            embed.set_footer(text=FIXED_FOOTER_TEXT)
+        if FIXED_FOOTER_TEXT:
+            if FIXED_FOOTER_ICON:
+                embed.set_footer(text=FIXED_FOOTER_TEXT, icon_url=FIXED_FOOTER_ICON)
+            else:
+                embed.set_footer(text=FIXED_FOOTER_TEXT)
 
         view = None
 

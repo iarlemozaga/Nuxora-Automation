@@ -9,6 +9,7 @@ let currentUser = null;
 let adminUsers = [];
 let adminGuilds = [];
 let liveNotifications = [];
+let currentAllowlistQuestions = [];
 
 function el(id) {
   return document.getElementById(id);
@@ -16,6 +17,46 @@ function el(id) {
 
 function isAdmin() {
   return currentUser && ["admin", "owner"].includes(currentUser.role);
+}
+
+function embedFooterStorageKey() {
+  return `nx_embed_footer_${selectedGuild || "global"}`;
+}
+
+function embedFooterFixedStorageKey() {
+  return `nx_embed_footer_fixed_${selectedGuild || "global"}`;
+}
+
+function loadSavedEmbedFooter() {
+  const footerInput = el("embed_footer");
+  const footerFixedInput = el("embed_footer_fixed");
+
+  if (!footerInput) return;
+
+  const isFixed = localStorage.getItem(embedFooterFixedStorageKey()) === "true";
+
+  if (footerFixedInput) {
+    footerFixedInput.checked = isFixed;
+  }
+
+  footerInput.value = isFixed
+    ? localStorage.getItem(embedFooterStorageKey()) || ""
+    : "";
+}
+
+function saveEmbedFooterPreference() {
+  const footerInput = el("embed_footer");
+  const footerFixedInput = el("embed_footer_fixed");
+
+  if (!footerInput || !footerFixedInput) return;
+
+  if (footerFixedInput.checked) {
+    localStorage.setItem(embedFooterFixedStorageKey(), "true");
+    localStorage.setItem(embedFooterStorageKey(), footerInput.value || "");
+  } else {
+    localStorage.removeItem(embedFooterFixedStorageKey());
+    localStorage.removeItem(embedFooterStorageKey());
+  }
 }
 
 function authHeaders() {
@@ -75,17 +116,29 @@ function logout() {
 
 async function doLogin() {
   try {
+    const usernameInput = el("username");
+    const passwordInput = el("password");
+
+    if (!usernameInput || !passwordInput) {
+      alert("Campos de login não encontrados no painel.");
+      return;
+    }
+
+    console.log("Tentando login no painel", { username: usernameInput.value });
+
     const res = await fetch(API + "/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: el("username").value,
-        password: el("password").value,
+        username: usernameInput.value,
+        password: passwordInput.value,
       }),
     });
 
     if (!res.ok) {
-      alert("Login inválido");
+      const errorText = await res.text();
+      console.error("Login recusado", res.status, errorText);
+      alert("Login inválido ou API indisponível: " + errorText);
       return;
     }
 
@@ -95,7 +148,7 @@ async function doLogin() {
 
     await boot();
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao tentar fazer login", err);
     alert("Erro ao tentar fazer login. Veja o console do navegador.");
   }
 }
@@ -323,6 +376,7 @@ function bindSidebar() {
 }
 
 async function loadDashboard() {
+  loadSavedEmbedFooter();
   if (!selectedGuild) {
     showTab("servers");
     return;
@@ -566,12 +620,20 @@ function fillSettings(s) {
   ].forEach((k) => setValue(k, s[k] || ""));
 
   try {
-    setValue(
-      "allowlist_questions",
-      JSON.parse(s.allowlist_questions || "[]").join("\n"),
+    currentAllowlistQuestions = JSON.parse(s.allowlist_questions || "[]");
+    setValue("allowlist_questions", currentAllowlistQuestions.join("\n"));
+  } catch (e) {
+    currentAllowlistQuestions = [];
+    setValue("allowlist_questions", "");
+  }
+
+  try {
+    renderAnswerRoleMappings(
+      JSON.parse(s.allowlist_answer_role_mappings || "[]"),
+      currentAllowlistQuestions,
     );
   } catch (e) {
-    setValue("allowlist_questions", "");
+    renderAnswerRoleMappings([], currentAllowlistQuestions);
   }
 
   let types = [];
@@ -595,6 +657,120 @@ function fillSettings(s) {
   }
 
   renderTicketTypes(types);
+}
+
+function renderAnswerRoleMappings(
+  mappings,
+  questions = currentAllowlistQuestions,
+) {
+  const box = el("allowlist-answer-role-mappings");
+
+  if (!box) {
+    return;
+  }
+
+  box.innerHTML = "";
+
+  mappings.forEach((mapping) => {
+    const div = document.createElement("div");
+    div.className = "answer-role-mapping-card allowlist-answer-role-mapping";
+
+    const selectedQuestion = mapping.question || "";
+    const questionOptions = questions
+      .map(
+        (question) =>
+          `<option value="${escAttr(question)}" ${question === selectedQuestion ? "selected" : ""}>${esc(question)}</option>`,
+      )
+      .join("");
+
+    const answers = Array.isArray(mapping.answers)
+      ? mapping.answers.join("\n")
+      : mapping.answer || "";
+    const roleIds = Array.isArray(mapping.role_ids)
+      ? mapping.role_ids
+      : String(mapping.role_id || "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean);
+
+    div.innerHTML = `
+                    <label>Pergunta da allowlist</label>
+                    <select class="arm-question">
+                        <option value="">Selecione uma pergunta</option>
+                        ${questionOptions}
+                    </select>
+
+                    <label>Respostas que ativam a regra, uma por linha</label>
+                    <textarea class="arm-answers" rows="3" placeholder="Ex: Lobisomem">${esc(answers)}</textarea>
+
+                    <label>Cargos para adicionar, separados por vírgula</label>
+                    <input class="arm-role-ids" placeholder="123,456" value="${escAttr(roleIds.join(","))}">
+
+                    <button type="button" onclick="this.parentElement.remove()">Remover regra</button>
+                `;
+
+    box.appendChild(div);
+  });
+}
+
+function getAnswerRoleMappingsFromForm(options = {}) {
+  const includeIncomplete = !!options.includeIncomplete;
+  const mappings = Array.from(
+    document.querySelectorAll(".allowlist-answer-role-mapping"),
+  ).map((div) => ({
+    question: div.querySelector(".arm-question").value.trim(),
+    answers: div
+      .querySelector(".arm-answers")
+      .value.split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean),
+    role_ids: div
+      .querySelector(".arm-role-ids")
+      .value.split(",")
+      .map((x) => x.trim().replace(/\D/g, ""))
+      .filter(Boolean),
+  }));
+
+  if (includeIncomplete) {
+    return mappings;
+  }
+
+  const incomplete = mappings.find(
+    (mapping) =>
+      (mapping.question || mapping.answers.length || mapping.role_ids.length) &&
+      (!mapping.question ||
+        !mapping.answers.length ||
+        !mapping.role_ids.length),
+  );
+
+  if (incomplete) {
+    alert(
+      "Complete todos os campos da regra de cargo por resposta: pergunta, resposta e cargo.",
+    );
+    return null;
+  }
+
+  return mappings.filter(
+    (mapping) =>
+      mapping.question && mapping.answers.length && mapping.role_ids.length,
+  );
+}
+
+function addAnswerRoleMapping() {
+  currentAllowlistQuestions = el("allowlist_questions")
+    .value.split(/\r?\n/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const mappings = getAnswerRoleMappingsFromForm({ includeIncomplete: true });
+
+  mappings.push({
+    question: currentAllowlistQuestions[0] || "",
+    answers: [],
+    role_ids: [],
+  });
+
+  renderAnswerRoleMappings(mappings, currentAllowlistQuestions);
 }
 
 function renderTicketTypes(types) {
@@ -635,17 +811,22 @@ function renderTicketTypes(types) {
 }
 
 function getTicketTypesFromForm() {
-  return Array.from(document.querySelectorAll(".ticket-type"))
+  const box = el("ticket-types");
+
+  if (!box) {
+    return [];
+  }
+
+  return Array.from(box.querySelectorAll(".ticket-type"))
     .map((div) => ({
-      id: div.querySelector(".tt-id").value.trim(),
-      label: div.querySelector(".tt-label").value.trim(),
-      emoji: div.querySelector(".tt-emoji").value.trim(),
-      description: div.querySelector(".tt-description").value.trim(),
-      style: div.querySelector(".tt-style").value.trim() || "gray",
-      category_id: div.querySelector(".tt-category-id").value.trim(),
-      allowed_role_ids: div
-        .querySelector(".tt-allowed-roles")
-        .value.split(",")
+      id: (div.querySelector(".tt-id")?.value || "").trim(),
+      label: (div.querySelector(".tt-label")?.value || "").trim(),
+      emoji: (div.querySelector(".tt-emoji")?.value || "").trim(),
+      description: (div.querySelector(".tt-description")?.value || "").trim(),
+      style: (div.querySelector(".tt-style")?.value || "gray").trim() || "gray",
+      category_id: (div.querySelector(".tt-category-id")?.value || "").trim(),
+      allowed_role_ids: (div.querySelector(".tt-allowed-roles")?.value || "")
+        .split(",")
         .map((x) => x.trim())
         .filter(Boolean),
     }))
@@ -669,95 +850,128 @@ function addTicketType() {
 }
 
 async function saveSettings() {
-  if (!selectedGuild) {
-    alert("Cadastre ou selecione um servidor primeiro.");
-    showTab("servers");
-    return;
+  try {
+    if (!selectedGuild) {
+      alert("Cadastre ou selecione um servidor primeiro.");
+      showTab("servers");
+      return;
+    }
+
+    const questionsInput = el("allowlist_questions");
+
+    if (!questionsInput) {
+      alert("Campo de perguntas da allowlist não encontrado no painel.");
+      return;
+    }
+
+    const questions = questionsInput.value
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    const ids = [
+      "allowlist_title",
+      "allowlist_description",
+      "allowlist_footer",
+      "allowlist_image_url",
+      "allowlist_thumbnail_url",
+      "allowlist_category_id",
+      "staff_channel_id",
+      "suggestion_channel_id",
+      "approved_role_id",
+      "remove_role_on_approved_id",
+      "interview_role_id",
+      "approved_channel_id",
+      "rejected_channel_id",
+      "autorole_role_id",
+      "bot_color",
+      "bot_profile_nick",
+      "bot_profile_avatar_url",
+      "bot_profile_banner_url",
+      "bot_profile_bio",
+      "ticket_panel_title",
+      "ticket_panel_description",
+      "ticket_panel_footer",
+      "ticket_panel_image_url",
+      "ticket_panel_thumbnail_url",
+      "ticket_panel_color",
+      "ticket_category_id",
+      "ticket_staff_role_id",
+      "logs_channel_id",
+      "member_join_channel_id",
+      "member_join_title",
+      "member_join_description",
+      "member_join_footer",
+      "member_join_color",
+      "member_join_image_url",
+      "member_leave_channel_id",
+      "member_leave_title",
+      "member_leave_description",
+      "member_leave_footer",
+      "member_leave_color",
+      "member_leave_image_url",
+      "allowlist_approved_title",
+      "allowlist_approved_description",
+      "allowlist_approved_color",
+      "allowlist_approved_footer",
+      "allowlist_rejected_title",
+      "allowlist_rejected_description",
+      "allowlist_rejected_color",
+      "allowlist_rejected_footer",
+      "allowlist_interview_title",
+      "allowlist_interview_description",
+      "allowlist_interview_color",
+      "allowlist_interview_footer",
+    ];
+
+    currentAllowlistQuestions = questions;
+
+    const answerRoleMappings = getAnswerRoleMappingsFromForm();
+
+    if (answerRoleMappings === null) {
+      return;
+    }
+
+    const settings = {
+      allowlist_questions: questions,
+      allowlist_answer_role_mappings: answerRoleMappings,
+      ticket_types: getTicketTypesFromForm(),
+    };
+
+    ids.forEach((id) => {
+      const input = el(id);
+      settings[id] = input ? input.value : "";
+    });
+
+    console.log("Salvando configurações", {
+      guild: selectedGuild,
+      answerRoleMappings: settings.allowlist_answer_role_mappings,
+    });
+
+    const res = await fetch(API + `/guilds/${selectedGuild}/settings`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ settings }),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erro ao salvar configurações", res.status, errorText);
+      alert("Erro ao salvar configurações: " + errorText);
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Configurações salvas com sucesso", data);
+
+    await loadDashboard();
+    alert("Configurações salvas e sincronização enviada para o bot.");
+  } catch (err) {
+    console.error("Erro inesperado ao salvar configurações", err);
+    alert(
+      "Erro inesperado ao salvar configurações. Abra o console do navegador para ver detalhes.",
+    );
   }
-
-  const questions = el("allowlist_questions")
-    .value.split(/\r?\n/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-  const ids = [
-    "allowlist_title",
-    "allowlist_description",
-    "allowlist_footer",
-    "allowlist_image_url",
-    "allowlist_thumbnail_url",
-    "allowlist_category_id",
-    "staff_channel_id",
-    "suggestion_channel_id",
-    "approved_role_id",
-    "remove_role_on_approved_id",
-    "interview_role_id",
-    "approved_channel_id",
-    "rejected_channel_id",
-    "autorole_role_id",
-    "bot_color",
-    "bot_profile_nick",
-    "bot_profile_avatar_url",
-    "bot_profile_banner_url",
-    "bot_profile_bio",
-    "ticket_panel_title",
-    "ticket_panel_description",
-    "ticket_panel_footer",
-    "ticket_panel_image_url",
-    "ticket_panel_thumbnail_url",
-    "ticket_panel_color",
-    "ticket_category_id",
-    "ticket_staff_role_id",
-    "logs_channel_id",
-    "member_join_channel_id",
-    "member_join_title",
-    "member_join_description",
-    "member_join_footer",
-    "member_join_color",
-    "member_join_image_url",
-    "member_leave_channel_id",
-    "member_leave_title",
-    "member_leave_description",
-    "member_leave_footer",
-    "member_leave_color",
-    "member_leave_image_url",
-    "allowlist_approved_title",
-    "allowlist_approved_description",
-    "allowlist_approved_color",
-    "allowlist_approved_footer",
-    "allowlist_rejected_title",
-    "allowlist_rejected_description",
-    "allowlist_rejected_color",
-    "allowlist_rejected_footer",
-    "allowlist_interview_title",
-    "allowlist_interview_description",
-    "allowlist_interview_color",
-    "allowlist_interview_footer",
-  ];
-
-  const settings = {
-    allowlist_questions: questions,
-    ticket_types: getTicketTypesFromForm(),
-  };
-
-  ids.forEach((id) => {
-    const input = el(id);
-    settings[id] = input ? input.value : "";
-  });
-
-  const res = await fetch(API + `/guilds/${selectedGuild}/settings`, {
-    method: "PUT",
-    headers: authHeaders(),
-    body: JSON.stringify({ settings }),
-  });
-
-  if (!res.ok) {
-    alert(await res.text());
-    return;
-  }
-
-  await loadDashboard();
-  alert("Configurações salvas");
 }
 
 async function loadLiveNotifications() {
@@ -990,11 +1204,12 @@ async function sendEmbedFromPanel() {
     return;
   }
 
+  saveEmbedFooterPreference();
   alert("Embed enviado para o bot processar.");
 
   el("embed_title").value = "";
   el("embed_description").value = "";
-  el("embed_footer").value = "";
+  loadSavedEmbedFooter();
   el("embed_image_url").value = "";
   el("embed_thumbnail_url").value = "";
 }
@@ -1013,7 +1228,7 @@ async function applyBotProfile() {
       nick: el("bot_profile_nick").value,
       avatar_url: el("bot_profile_avatar_url").value,
       banner_url: el("bot_profile_banner_url").value,
-      bio: el("bot_profile_bio").value,
+      bio: "",
     }),
   });
 
@@ -1023,6 +1238,27 @@ async function applyBotProfile() {
   }
 
   alert("Perfil do bot enviado para aplicação. Aguarde alguns segundos.");
+}
+
+async function adminApplyBotActivity() {
+  const text = el("admin_bot_activity_text").value.trim();
+  const activityType = el("admin_bot_activity_type").value;
+
+  const res = await fetch(API + "/admin/bot-activity", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      text,
+      activity_type: activityType,
+    }),
+  });
+
+  if (!res.ok) {
+    alert(await res.text());
+    return;
+  }
+
+  alert("Atividade global enviada para o bot. Aguarde alguns segundos.");
 }
 
 async function adminLoad() {
@@ -1272,22 +1508,35 @@ function escAttr(str) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const btnLogin = el("btnLogin");
   const btnLogout = el("btnLogout");
   const btnManageServers = el("btnManageServers");
   const btnInviteBot = el("btnInviteBot");
   const btnAddTicketType = el("btnAddTicketType");
   const btnSaveTickets = el("btnSaveTickets");
-  const btnSaveSettings = el("btnSaveSettings");
   const btnAdminCreateUser = el("btnAdminCreateUser");
   const btnAdminLinkGuild = el("btnAdminLinkGuild");
   const btnChangePassword = el("btnChangePassword");
   const btnSendEmbed = el("btnSendEmbed");
   const btnApplyBotProfile = el("btnApplyBotProfile");
+  const btnAdminApplyBotActivity = el("btnAdminApplyBotActivity");
   const btnAddLiveNotification = el("btnAddLiveNotification");
   const guildSelector = el("guildSelector");
+  const embedFooter = el("embed_footer");
+  const embedFooterFixed = el("embed_footer_fixed");
 
-  if (btnLogin) btnLogin.addEventListener("click", doLogin);
+  if (embedFooter) {
+    loadSavedEmbedFooter();
+    embedFooter.addEventListener("input", () => {
+      if (embedFooterFixed && embedFooterFixed.checked) {
+        saveEmbedFooterPreference();
+      }
+    });
+  }
+
+  if (embedFooterFixed) {
+    embedFooterFixed.addEventListener("change", saveEmbedFooterPreference);
+  }
+
   if (btnLogout) btnLogout.addEventListener("click", logout);
   if (btnManageServers)
     btnManageServers.addEventListener("click", () => showTab("servers"));
@@ -1295,7 +1544,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnAddTicketType)
     btnAddTicketType.addEventListener("click", addTicketType);
   if (btnSaveTickets) btnSaveTickets.addEventListener("click", saveSettings);
-  if (btnSaveSettings) btnSaveSettings.addEventListener("click", saveSettings);
   if (btnAdminCreateUser)
     btnAdminCreateUser.addEventListener("click", adminCreateUser);
   if (btnAdminLinkGuild)
@@ -1305,6 +1553,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnSendEmbed) btnSendEmbed.addEventListener("click", sendEmbedFromPanel);
   if (btnApplyBotProfile)
     btnApplyBotProfile.addEventListener("click", applyBotProfile);
+  if (btnAdminApplyBotActivity)
+    btnAdminApplyBotActivity.addEventListener("click", adminApplyBotActivity);
   if (btnAddLiveNotification)
     btnAddLiveNotification.addEventListener("click", saveLiveNotification);
 

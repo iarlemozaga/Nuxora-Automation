@@ -42,6 +42,7 @@ class GuildSettings(Base):
     allowlist_description = Column(Text, default="")
     allowlist_footer = Column(Text, default="")
     allowlist_questions = Column(Text, default="[]")
+    allowlist_answer_role_mappings = Column(Text, default="[]")
 
     allowlist_category_id = Column(String, default="")
 

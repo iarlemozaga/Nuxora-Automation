@@ -5,7 +5,6 @@ from urllib.parse import urlencode
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
 from shared.db import (
     create_session,
     execute,
@@ -17,12 +16,26 @@ from shared.db import (
     row,
     rows,
     set_guild_setting,
+    set_setting,
     verify_password,
 )
 
 init_db()
 
 app = FastAPI(title="Nuxora SaaS API")
+
+
+@app.middleware("http")
+async def strip_api_prefix(request, call_next):
+    path = request.scope.get("path", "")
+
+    if path == "/api":
+        request.scope["path"] = "/"
+    elif path.startswith("/api/"):
+        request.scope["path"] = path[4:]
+
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -108,6 +121,11 @@ class BotProfileBody(BaseModel):
     bio: str | None = ""
 
 
+class BotActivityBody(BaseModel):
+    text: str | None = ""
+    activity_type: str | None = "playing"
+
+
 class LiveNotificationBody(BaseModel):
     streamer_login: str
     discord_channel_id: str
@@ -147,44 +165,37 @@ DEFAULT_GUILD_SETTINGS = {
         ],
         ensure_ascii=False,
     ),
+    "allowlist_answer_role_mappings": json.dumps([], ensure_ascii=False),
     "allowlist_category_id": "",
     "allowlist_panel_channel_id": "",
     "allowlist_panel_message_id": "",
     "allowlist_image_url": "",
     "allowlist_thumbnail_url": "",
-
     "staff_channel_id": "",
     "suggestion_channel_id": "",
-
     "approved_role_id": "",
     "remove_role_on_approved_id": "",
     "interview_role_id": "",
     "approved_channel_id": "",
     "rejected_channel_id": "",
-
     "allowlist_approved_title": "✅ Allowlist aprovada",
     "allowlist_approved_description": "Parabéns, {user}! Sua allowlist foi aprovada.",
     "allowlist_approved_color": "#2ecc71",
     "allowlist_approved_footer": "Nuxora • Allowlist",
-
     "allowlist_rejected_title": "❌ Allowlist reprovada",
     "allowlist_rejected_description": "{user}, sua allowlist foi analisada e foi reprovada.",
     "allowlist_rejected_color": "#e74c3c",
     "allowlist_rejected_footer": "Nuxora • Allowlist",
-
     "allowlist_interview_title": "🎤 Encaminhado para entrevista",
     "allowlist_interview_description": "{user}, sua allowlist foi analisada e você foi chamado para entrevista.",
     "allowlist_interview_color": "#5865F2",
     "allowlist_interview_footer": "Nuxora • Allowlist",
-
     "autorole_role_id": "",
     "bot_color": "#8B0000",
-
     "bot_profile_nick": "",
     "bot_profile_avatar_url": "",
     "bot_profile_banner_url": "",
     "bot_profile_bio": "",
-
     "ticket_panel_title": "Central de Atendimento",
     "ticket_panel_description": "Escolha abaixo o tipo de ticket que deseja abrir.",
     "ticket_panel_footer": "Nuxora",
@@ -208,7 +219,6 @@ DEFAULT_GUILD_SETTINGS = {
         ],
         ensure_ascii=False,
     ),
-
     "member_join_channel_id": "",
     "member_leave_channel_id": "",
     "member_join_title": "👋 Bem-vindo(a)",
@@ -736,6 +746,8 @@ def update_settings(guild_id: str, body: SettingsBody, user=Depends(require_user
     for key, value in body.settings.items():
         set_guild_setting(guild_id, key, value)
 
+    answer_role_mappings = body.settings.get("allowlist_answer_role_mappings", [])
+
     add_log(
         guild_id,
         "settings_updated",
@@ -743,6 +755,9 @@ def update_settings(guild_id: str, body: SettingsBody, user=Depends(require_user
             "source": "dashboard",
             "keys": list(body.settings.keys()),
             "guild_id": guild_id,
+            "allowlist_answer_role_mappings_count": len(answer_role_mappings)
+            if isinstance(answer_role_mappings, list)
+            else 0,
         },
     )
 
@@ -770,6 +785,7 @@ def send_embed_from_dashboard(
 
     title = (body.title or "").strip()
     description = (body.description or "").strip()
+    footer = (body.footer or "").strip()
 
     if not title and not description:
         raise HTTPException(status_code=400, detail="Título ou descrição obrigatórios")
@@ -783,7 +799,7 @@ def send_embed_from_dashboard(
             "title": title,
             "description": description,
             "color": body.color or "#8B0000",
-            "footer": body.footer or "",
+            "footer": footer,
             "image_url": body.image_url or "",
             "thumbnail_url": body.thumbnail_url or "",
             "source": "dashboard",
@@ -828,6 +844,7 @@ def apply_bot_profile(
             "avatar_url": avatar_url,
             "banner_url": banner_url,
             "bio": bio,
+            "bio_ignored": bool(bio),
             "source": "dashboard",
             "user_id": user["id"],
             "username": user["username"],
@@ -835,6 +852,39 @@ def apply_bot_profile(
     )
 
     return {"ok": True}
+
+
+@app.post("/admin/bot-activity")
+def admin_apply_bot_activity(
+    body: BotActivityBody,
+    admin=Depends(require_admin),
+):
+    text = (body.text or "").strip()
+    activity_type = (body.activity_type or "playing").strip().lower()
+
+    if activity_type not in ["playing", "watching", "listening", "competing"]:
+        activity_type = "playing"
+
+    if len(text) > 128:
+        text = text[:128]
+
+    set_setting("bot_activity_text", text)
+    set_setting("bot_activity_type", activity_type)
+
+    add_log(
+        "global",
+        "apply_bot_activity",
+        {
+            "guild_id": "global",
+            "text": text,
+            "activity_type": activity_type,
+            "source": "admin_dashboard",
+            "user_id": admin["id"],
+            "username": admin["username"],
+        },
+    )
+
+    return {"ok": True, "text": text, "activity_type": activity_type}
 
 
 # =========================

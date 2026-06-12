@@ -318,7 +318,8 @@ tr:hover td {
     margin-top: 6px;
 }
 
-.ticket-type {
+.ticket-type,
+.answer-role-mapping-card {
     background: #f9fbfd;
     border-radius: 1.2rem;
     padding: 1rem;

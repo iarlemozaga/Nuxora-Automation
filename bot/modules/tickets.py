@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import os
+import re
 
 import discord
 from discord import app_commands
@@ -186,6 +187,32 @@ def get_ticket_type(channel: discord.TextChannel) -> str:
     return "ticket"
 
 
+def parse_member_id(value: str) -> int | None:
+    value = str(value or "").strip()
+
+    if value.startswith("<@") and value.endswith(">"):
+        value = value.replace("<@", "").replace("!", "").replace(">", "")
+
+    return int(value) if value.isdigit() else None
+
+
+async def resolve_guild_member(guild: discord.Guild, value: str):
+    member_id = parse_member_id(value)
+
+    if not member_id:
+        return None
+
+    member = guild.get_member(member_id)
+
+    if member:
+        return member
+
+    try:
+        return await guild.fetch_member(member_id)
+    except Exception:
+        return None
+
+
 async def get_logs_channel(guild: discord.Guild):
     cfg = await get_ticket_settings(guild.id)
 
@@ -214,33 +241,46 @@ async def make_transcript(channel: discord.TextChannel) -> discord.File:
     return discord.File(buffer, filename=f"transcript-{channel.name}.txt")
 
 
-async def is_ticket_staff(interaction: discord.Interaction) -> bool:
-    if interaction.user.guild_permissions.manage_channels:
+def member_has_ticket_staff_access(
+    guild: discord.Guild,
+    member: discord.Member,
+    cfg: dict,
+    ticket_type: dict | None = None,
+) -> bool:
+    if member.guild_permissions.manage_channels:
         return True
-
-    cfg = await get_ticket_settings(interaction.guild.id)
 
     default_role_id = cfg["default_staff_role_id"]
 
     if default_role_id:
-        role = interaction.guild.get_role(default_role_id)
+        role = guild.get_role(default_role_id)
 
-        if role and role in interaction.user.roles:
+        if role and role in member.roles:
             return True
 
+    if ticket_type:
+        for role_id in ticket_type.get("allowed_role_ids", []):
+            role = guild.get_role(int(role_id))
+
+            if role and role in member.roles:
+                return True
+
+    return False
+
+
+async def is_ticket_staff(interaction: discord.Interaction) -> bool:
+    cfg = await get_ticket_settings(interaction.guild.id)
     ticket_type_id = get_ticket_type(interaction.channel)
     ticket_type = next(
         (t for t in cfg["ticket_types"] if t["id"] == ticket_type_id), None
     )
 
-    if ticket_type:
-        for role_id in ticket_type.get("allowed_role_ids", []):
-            role = interaction.guild.get_role(int(role_id))
-
-            if role and role in interaction.user.roles:
-                return True
-
-    return False
+    return member_has_ticket_staff_access(
+        interaction.guild,
+        interaction.user,
+        cfg,
+        ticket_type,
+    )
 
 
 async def can_close_ticket(interaction: discord.Interaction) -> bool:
@@ -385,13 +425,14 @@ async def create_ticket_channel(
         reason=f"Ticket aberto para {user} por {opened_by or user}",
     )
 
+    ticket_description = str(
+        ticket_type_data.get("description")
+        or "Explique sua solicitação com detalhes.\nA staff responsável responderá assim que possível."
+    ).strip()
+
     embed = discord.Embed(
         title=custom_title or f"{emoji} Ticket de {label}",
-        description=(
-            f"{user.mention}, seu ticket foi aberto.\n\n"
-            "Explique sua solicitação com detalhes.\n"
-            "A staff responsável responderá assim que possível."
-        ),
+        description=f"{user.mention}, seu ticket foi aberto.\n\n{ticket_description}",
         color=cfg["color"],
     )
 
@@ -430,100 +471,43 @@ async def create_ticket_channel(
     return channel
 
 
-async def update_ticket_member_access(
-    interaction: discord.Interaction,
-    member: discord.Member,
-    allow: bool,
-):
-    channel = interaction.channel
-
-    if not isinstance(channel, discord.TextChannel) or not get_ticket_owner_id(channel):
-        await interaction.response.send_message(
-            "❌ Este canal não parece ser um ticket.", ephemeral=True
+class TicketMemberModal(discord.ui.Modal):
+    def __init__(self, action: str):
+        self.action = action
+        title = (
+            "Adicionar pessoa ao ticket"
+            if action == "add"
+            else "Remover pessoa do ticket"
         )
-        return
+        super().__init__(title=title, timeout=300)
 
-    if not await is_ticket_staff(interaction):
-        await interaction.response.send_message(
-            "❌ Apenas a staff pode alterar participantes do ticket.", ephemeral=True
-        )
-        return
-
-    owner_id = get_ticket_owner_id(channel)
-
-    if member.id == owner_id and not allow:
-        await interaction.response.send_message(
-            "❌ Não é possível remover o dono do ticket.", ephemeral=True
-        )
-        return
-
-    if allow:
-        overwrite = discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            attach_files=True,
-            read_message_history=True,
-        )
-        await channel.set_permissions(
-            member,
-            overwrite=overwrite,
-            reason=f"Adicionado ao ticket por {interaction.user}",
-        )
-        message = f"✅ {member.mention} foi adicionado ao ticket."
-        event = "ticket_member_added"
-    else:
-        await channel.set_permissions(
-            member,
-            overwrite=None,
-            reason=f"Removido do ticket por {interaction.user}",
-        )
-        message = f"✅ {member.mention} foi removido do ticket."
-        event = "ticket_member_removed"
-
-    await interaction.response.send_message(message)
-
-    await log(
-        event,
-        {
-            "channel_id": channel.id,
-            "member_id": member.id,
-            "staff_id": interaction.user.id,
-        },
-        str(interaction.guild.id),
-    )
-
-
-class TicketMemberAccessModal(discord.ui.Modal):
-    def __init__(self, allow: bool):
-        self.allow = allow
-        title = "Adicionar pessoa ao ticket" if allow else "Remover pessoa do ticket"
-        super().__init__(title=title)
-
-        self.usuario_id = discord.ui.TextInput(
-            label="ID do usuário",
-            placeholder="Ex.: 123456789012345678",
-            min_length=17,
-            max_length=20,
+        self.member_value = discord.ui.TextInput(
+            label="ID ou menção do usuário",
+            placeholder="Ex: 123456789012345678 ou @usuario",
             required=True,
+            max_length=64,
         )
-        self.add_item(self.usuario_id)
+        self.add_item(self.member_value)
 
     async def on_submit(self, interaction: discord.Interaction):
-        value = str(self.usuario_id.value).strip()
-
-        if not value.isdigit():
+        if not await is_ticket_staff(interaction):
             await interaction.response.send_message(
-                "❌ Informe apenas o ID numérico do usuário.", ephemeral=True
+                "❌ Apenas a staff pode alterar participantes do ticket.",
+                ephemeral=True,
             )
             return
 
-        member = interaction.guild.get_member(int(value))
+        owner_id = get_ticket_owner_id(interaction.channel)
 
-        if not member:
-            try:
-                member = await interaction.guild.fetch_member(int(value))
-            except Exception:
-                member = None
+        if not owner_id:
+            await interaction.response.send_message(
+                "❌ Este canal não parece ser um ticket.", ephemeral=True
+            )
+            return
+
+        member = await resolve_guild_member(
+            interaction.guild, str(self.member_value.value)
+        )
 
         if not member:
             await interaction.response.send_message(
@@ -531,7 +515,60 @@ class TicketMemberAccessModal(discord.ui.Modal):
             )
             return
 
-        await update_ticket_member_access(interaction, member, self.allow)
+        if self.action == "remove" and member.id == owner_id:
+            await interaction.response.send_message(
+                "❌ Não é possível remover o dono do ticket por este botão.",
+                ephemeral=True,
+            )
+            return
+
+        if self.action == "add":
+            overwrite = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                attach_files=True,
+                read_message_history=True,
+            )
+            await interaction.channel.set_permissions(
+                member,
+                overwrite=overwrite,
+                reason=f"Adicionado ao ticket por {interaction.user}",
+            )
+            await interaction.response.send_message(
+                f"✅ {member.mention} foi adicionado ao ticket."
+            )
+            await log(
+                "ticket_member_added",
+                {
+                    "channel_id": interaction.channel.id,
+                    "member_id": member.id,
+                    "staff_id": interaction.user.id,
+                },
+            )
+            return
+
+        overwrite = discord.PermissionOverwrite(
+            view_channel=False,
+            send_messages=False,
+            attach_files=False,
+            read_message_history=False,
+        )
+        await interaction.channel.set_permissions(
+            member,
+            overwrite=overwrite,
+            reason=f"Removido do ticket por {interaction.user}",
+        )
+        await interaction.response.send_message(
+            f"✅ {member.mention} foi removido do ticket."
+        )
+        await log(
+            "ticket_member_removed",
+            {
+                "channel_id": interaction.channel.id,
+                "member_id": member.id,
+                "staff_id": interaction.user.id,
+            },
+        )
 
 
 class TicketControlView(View):
@@ -574,7 +611,7 @@ class TicketControlView(View):
         label="Adicionar pessoa",
         emoji="➕",
         style=discord.ButtonStyle.green,
-        custom_id="ticket:add_member",
+        custom_id="ticket:member:add",
     )
     async def add_member(
         self, interaction: discord.Interaction, button: discord.ui.Button
@@ -585,13 +622,13 @@ class TicketControlView(View):
             )
             return
 
-        await interaction.response.send_modal(TicketMemberAccessModal(allow=True))
+        await interaction.response.send_modal(TicketMemberModal("add"))
 
     @discord.ui.button(
         label="Remover pessoa",
         emoji="➖",
         style=discord.ButtonStyle.gray,
-        custom_id="ticket:remove_member",
+        custom_id="ticket:member:remove",
     )
     async def remove_member(
         self, interaction: discord.Interaction, button: discord.ui.Button
@@ -602,7 +639,7 @@ class TicketControlView(View):
             )
             return
 
-        await interaction.response.send_modal(TicketMemberAccessModal(allow=False))
+        await interaction.response.send_modal(TicketMemberModal("remove"))
 
     @discord.ui.button(
         label="Fechar",
@@ -672,19 +709,17 @@ async def close_ticket(interaction: discord.Interaction):
 
 class DynamicTicketButton(
     discord.ui.DynamicItem[discord.ui.Button],
-    template=r"ticket:open:(?P<ticket_type_id>[a-z0-9_-]+)",
+    template=re.compile(r"^ticket:open:(?P<ticket_type_id>[a-z0-9_-]{1,80})$"),
 ):
     def __init__(self, ticket_type: dict):
         self.ticket_type_id = safe_channel_name(ticket_type["id"])
-
-        custom_id = f"ticket:open:{self.ticket_type_id}"[:100]
 
         super().__init__(
             discord.ui.Button(
                 label=ticket_type.get("label", self.ticket_type_id)[:80],
                 emoji=ticket_type.get("emoji") or None,
                 style=button_style(ticket_type.get("style")),
-                custom_id=custom_id,
+                custom_id=f"ticket:open:{self.ticket_type_id}",
             )
         )
 
@@ -693,10 +728,11 @@ class DynamicTicketButton(
         cls,
         interaction: discord.Interaction,
         item: discord.ui.Button,
-        match,
+        match: re.Match[str],
     ):
         ticket_type_id = safe_channel_name(match.group("ticket_type_id"))
-        _, ticket_type = await resolve_ticket_type(ticket_type_id, interaction.guild.id)
+        guild_id = interaction.guild.id if interaction.guild else None
+        _, ticket_type = await resolve_ticket_type(ticket_type_id, guild_id)
         return cls(ticket_type)
 
     async def callback(self, interaction: discord.Interaction):
@@ -708,13 +744,25 @@ class DynamicTicketButton(
             interaction.guild.id,
         )
 
-        for channel in interaction.guild.text_channels:
-            if get_ticket_owner_id(channel) == interaction.user.id:
-                await interaction.response.send_message(
-                    f"⚠️ Você já possui um ticket aberto: {channel.mention}",
-                    ephemeral=True,
-                )
-                return
+        can_open_multiple = member_has_ticket_staff_access(
+            interaction.guild,
+            interaction.user,
+            cfg,
+            ticket_type,
+        )
+
+        if not can_open_multiple:
+            for channel in interaction.guild.text_channels:
+                if (
+                    get_ticket_owner_id(channel) == interaction.user.id
+                    and get_ticket_type(channel) == ticket_type["id"]
+                ):
+                    await interaction.response.send_message(
+                        f"⚠️ Você já possui um ticket aberto desta categoria: {channel.mention}",
+                        ephemeral=True,
+                    )
+                    return
+
 
         channel = await create_ticket_channel(
             guild=interaction.guild,
@@ -746,21 +794,14 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bot.add_view(TicketControlView())
+        self.bot.add_dynamic_items(DynamicTicketButton)
         print("✅ Tickets cog inicializado", flush=True)
 
     async def cog_load(self):
-        try:
-            self.bot.add_dynamic_items(DynamicTicketButton)
-            # Mantém compatibilidade com painéis antigos/default já enviados.
-            self.bot.add_view(TicketPanelView(DEFAULT_TICKET_TYPES))
-            print(
-                "✅ Painel de tickets persistente registrado, incluindo tipos customizados.",
-                flush=True,
-            )
-        except Exception as e:
-            print(
-                f"❌ Erro ao registrar painel persistente de tickets: {e}", flush=True
-            )
+        print(
+            "✅ Painel de tickets persistente registrado por custom_id dinâmico.",
+            flush=True,
+        )
 
     @app_commands.command(
         name="painel_tickets", description="Envia o painel de tickets"
@@ -951,30 +992,6 @@ class Tickets(commands.Cog):
             f"✅ Ticket manual criado para {member.mention}: {channel.mention}",
             ephemeral=True,
         )
-
-    @app_commands.command(
-        name="ticket_add_pessoa",
-        description="Adiciona uma pessoa ao ticket atual",
-    )
-    @app_commands.default_permissions(manage_channels=True)
-    async def ticket_add_pessoa(
-        self,
-        interaction: discord.Interaction,
-        usuario: discord.Member,
-    ):
-        await update_ticket_member_access(interaction, usuario, True)
-
-    @app_commands.command(
-        name="ticket_remove_pessoa",
-        description="Remove uma pessoa do ticket atual",
-    )
-    @app_commands.default_permissions(manage_channels=True)
-    async def ticket_remove_pessoa(
-        self,
-        interaction: discord.Interaction,
-        usuario: discord.Member,
-    ):
-        await update_ticket_member_access(interaction, usuario, False)
 
     @app_commands.command(name="fechar_ticket", description="Fecha o ticket atual")
     async def fechar_ticket(self, interaction: discord.Interaction):

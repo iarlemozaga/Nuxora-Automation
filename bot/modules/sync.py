@@ -6,13 +6,51 @@ import discord
 from discord.ext import commands, tasks
 from modules.allowlist import (
     AllowlistStartView,
+    apply_answer_role_mappings,
     build_allowlist_panel_embed,
 )
 from shared.db import log, row, rows, settings
 from shared.guard import is_guild_active
+
 # =========================
 # HELPERS
 # =========================
+
+EMBED_DESCRIPTION_LIMIT = 4000
+
+
+def split_embed_description(
+    description: str, limit: int = EMBED_DESCRIPTION_LIMIT
+) -> list[str]:
+    description = str(description or "")
+
+    if len(description) <= limit:
+        return [description]
+
+    chunks: list[str] = []
+    remaining = description
+
+    while len(remaining) > limit:
+        split_at = remaining.rfind("\n", 0, limit + 1)
+
+        if split_at < int(limit * 0.5):
+            split_at = remaining.rfind(" ", 0, limit + 1)
+
+        if split_at <= 0:
+            split_at = limit
+
+        chunk = remaining[:split_at].rstrip()
+
+        if not chunk:
+            chunk = remaining[:limit]
+
+        chunks.append(chunk)
+        remaining = remaining[len(chunk) :].lstrip()
+
+    if remaining or not chunks:
+        chunks.append(remaining)
+
+    return chunks
 
 
 async def url_to_data_uri(url: str) -> str | None:
@@ -367,6 +405,9 @@ class DashboardSync(commands.Cog):
             elif event == "apply_bot_profile":
                 await self.handle_apply_bot_profile(item)
 
+            elif event == "apply_bot_activity":
+                await self.handle_apply_bot_activity(item)
+
     async def get_guild(self, guild_id=None):
         if guild_id:
             guild = self.bot.get_guild(int(guild_id))
@@ -554,6 +595,14 @@ class DashboardSync(commands.Cog):
         elif member and status in ["approved", "interview"]:
             print(f"⚠️ Cargo não encontrado para status {status}.", flush=True)
 
+        if member and status == "approved":
+            await apply_answer_role_mappings(
+                guild=guild,
+                member=member,
+                answers=answers,
+                cfg=cfg,
+            )
+
         result_embed = discord.Embed(title=title, description=desc, color=color)
 
         if footer:
@@ -710,28 +759,41 @@ class DashboardSync(commands.Cog):
         except Exception:
             color = 0x8B0000
 
-        embed = discord.Embed(
-            title=str(payload.get("title") or ""),
-            description=str(payload.get("description") or ""),
-            color=color,
-        )
-
+        title = str(payload.get("title") or "").strip()
+        description = str(payload.get("description") or "")
         footer = str(payload.get("footer") or "").strip()
         image_url = str(payload.get("image_url") or "").strip()
         thumbnail_url = str(payload.get("thumbnail_url") or "").strip()
-
-        if footer:
-            embed.set_footer(text=footer)
-
-        if image_url:
-            embed.set_image(url=image_url)
-
-        if thumbnail_url:
-            embed.set_thumbnail(url=thumbnail_url)
+        description_chunks = split_embed_description(description)
 
         try:
-            await channel.send(embed=embed)
-            print(f"✅ Embed enviado pelo painel no canal {channel_id}", flush=True)
+            for index, description_chunk in enumerate(description_chunks):
+                embed_title = title if index == 0 else ""
+
+                if title and index > 0:
+                    embed_title = f"{title[:238]} — continuação {index + 1}"
+
+                embed = discord.Embed(
+                    title=embed_title,
+                    description=description_chunk,
+                    color=color,
+                )
+
+                if footer:
+                    embed.set_footer(text=footer)
+
+                if index == 0 and image_url:
+                    embed.set_image(url=image_url)
+
+                if index == 0 and thumbnail_url:
+                    embed.set_thumbnail(url=thumbnail_url)
+
+                await channel.send(embed=embed)
+
+            print(
+                f"✅ Embed enviado pelo painel no canal {channel_id} em {len(description_chunks)} parte(s)",
+                flush=True,
+            )
         except Exception as e:
             print(f"❌ Erro ao enviar embed pelo painel: {e}", flush=True)
 
@@ -782,7 +844,11 @@ class DashboardSync(commands.Cog):
             body["banner"] = banner_data
 
         if bio:
-            body["bio"] = bio[:190]
+            print(
+                "⚠️ Bio/Sobre mim por servidor ignorado: o Discord não permite "
+                "alterar a bio do bot por servidor. Use a atividade global no painel admin.",
+                flush=True,
+            )
 
         if not body:
             print("⚠️ Nenhum campo de perfil preenchido para aplicar.", flush=True)
@@ -819,7 +885,46 @@ class DashboardSync(commands.Cog):
         )
 
     # =========================
-    # SETTINGS -> DISCORD
+    # BOT ACTIVITY ADMIN -> DISCORD
+    # =========================
+
+    async def handle_apply_bot_activity(self, item):
+        print("=== SYNC APPLY BOT ACTIVITY RECEBIDO ===", flush=True)
+
+        try:
+            payload = json.loads(item.get("payload") or "{}")
+        except Exception as e:
+            print(f"❌ Erro ao ler payload apply_bot_activity: {e}", flush=True)
+            return
+
+        text = str(payload.get("text") or "").strip()[:128]
+        activity_type = str(payload.get("activity_type") or "playing").strip().lower()
+
+        if not text:
+            activity = None
+        elif activity_type == "watching":
+            activity = discord.Activity(type=discord.ActivityType.watching, name=text)
+        elif activity_type == "listening":
+            activity = discord.Activity(type=discord.ActivityType.listening, name=text)
+        elif activity_type == "competing":
+            activity = discord.Activity(type=discord.ActivityType.competing, name=text)
+        else:
+            activity = discord.Game(name=text)
+
+        try:
+            await self.bot.change_presence(
+                activity=activity,
+                status=discord.Status.online,
+            )
+            print(
+                f"✅ Atividade global do bot aplicada: {activity_type} / {text or 'limpa'}",
+                flush=True,
+            )
+        except Exception as e:
+            print(f"❌ Erro ao aplicar atividade global do bot: {e}", flush=True)
+
+    # =========================
+    # SETTINGS UPDATED -> RECRIAR PAINEL ALLOWLIST
     # =========================
 
     async def handle_settings_updated(self, item):

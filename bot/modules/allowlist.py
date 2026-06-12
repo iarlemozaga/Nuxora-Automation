@@ -78,6 +78,109 @@ def get_nickname_from_answers(answers: list[dict]) -> str | None:
     return nickname[:32]
 
 
+def normalize_answer_role_text(value: str):
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def parse_role_ids(raw_role_ids):
+    if isinstance(raw_role_ids, list):
+        values = raw_role_ids
+    else:
+        values = str(raw_role_ids or "").split(",")
+
+    role_ids = []
+
+    for value in values:
+        role_id = "".join(ch for ch in str(value or "") if ch.isdigit())
+
+        if role_id and role_id not in role_ids:
+            role_ids.append(role_id)
+
+    return role_ids
+
+
+def parse_answer_values(mapping: dict):
+    raw_answers = mapping.get("answers")
+
+    if isinstance(raw_answers, list):
+        values = raw_answers
+    else:
+        values = str(mapping.get("answer", "")).replace(";", "\n").splitlines()
+
+    return [normalize_answer_role_text(value) for value in values if str(value).strip()]
+
+
+async def apply_answer_role_mappings(
+    guild: discord.Guild,
+    member: discord.Member,
+    answers: list[dict],
+    cfg: dict,
+):
+    try:
+        mappings = json.loads(cfg.get("allowlist_answer_role_mappings", "[]") or "[]")
+    except Exception as e:
+        print(f"❌ Config allowlist_answer_role_mappings inválida: {e}", flush=True)
+        return []
+
+    if not isinstance(mappings, list) or not mappings:
+        return []
+
+    answer_by_question = {
+        normalize_answer_role_text(
+            item.get("question", "")
+        ): normalize_answer_role_text(item.get("answer", ""))
+        for item in answers
+        if item.get("question")
+    }
+
+    roles_to_add = []
+
+    for mapping in mappings:
+        if not isinstance(mapping, dict):
+            continue
+
+        question = normalize_answer_role_text(mapping.get("question", ""))
+        accepted_answers = parse_answer_values(mapping)
+        role_ids = parse_role_ids(mapping.get("role_ids") or mapping.get("role_id"))
+
+        if not question or not accepted_answers or not role_ids:
+            continue
+
+        user_answer = answer_by_question.get(question, "")
+
+        if user_answer not in accepted_answers:
+            continue
+
+        for role_id in role_ids:
+            role = guild.get_role(int(role_id))
+
+            if role and role not in roles_to_add:
+                roles_to_add.append(role)
+            elif not role:
+                print(
+                    f"⚠️ Cargo dinâmico da allowlist não encontrado: {role_id}",
+                    flush=True,
+                )
+
+    if not roles_to_add:
+        return []
+
+    try:
+        await member.add_roles(
+            *roles_to_add,
+            reason="Allowlist aprovada: cargos por resposta",
+        )
+        print(
+            "✅ Cargos dinâmicos por resposta adicionados: "
+            f"{', '.join([role.name for role in roles_to_add])}",
+            flush=True,
+        )
+        return roles_to_add
+    except Exception as e:
+        print(f"❌ Erro ao adicionar cargos dinâmicos por resposta: {e}", flush=True)
+        return []
+
+
 def format_allowlist_text(
     text: str, member, application: dict | None, answers: list[dict]
 ):
@@ -539,6 +642,14 @@ class StaffDecisionView(View):
                     flush=True,
                 )
 
+        if status == "approved":
+            await apply_answer_role_mappings(
+                guild=interaction.guild,
+                member=member,
+                answers=answers,
+                cfg=cfg,
+            )
+
         await execute(
             "UPDATE applications SET status=?, updated_at=? WHERE id=?",
             (status, now(), self.application_id),
@@ -986,15 +1097,7 @@ class AllowlistStartView(View):
 class Allowlist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    async def cog_load(self):
-        try:
-            self.bot.add_view(AllowlistStartView())
-            print("✅ Painel de allowlist persistente registrado.", flush=True)
-        except Exception as e:
-            print(
-                f"❌ Erro ao registrar painel persistente de allowlist: {e}", flush=True
-            )
+        self.bot.add_view(AllowlistStartView())
 
     @app_commands.command(
         name="painel_allowlist",
